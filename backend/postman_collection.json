@@ -1,0 +1,1045 @@
+{
+  "info": {
+    "name": "XMLForge API V2",
+    "description": "Collection Postman compl\u00e8te backend V2 avec m\u00e9tadonn\u00e9es, commentaires, archive/restore, history V2, audit, converters, import/export, websocket",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Nyx Dev\",\n  \"email\": \"nyx@xmlforge.io\",\n  \"password\": \"Secret123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "register"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nyx@xmlforge.io\",\n  \"password\": \"Secret123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "logout"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Databases V2",
+      "item": [
+        {
+          "name": "List databases",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/databases?include_archived=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "databases"
+              ],
+              "query": [
+                {
+                  "key": "include_archived",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create database with comment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Biblioth\u00e8que\",\n  \"description\": \"Gestion livres\",\n  \"comment\": \"Base critique prod\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/databases",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "databases"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get database",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/databases/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "databases",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update database",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Biblioth\u00e8que V2\",\n  \"comment\": \"Updated comment\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/databases/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "databases",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get database comment",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/databases/1/comment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "databases",
+                "1",
+                "comment"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Put database comment",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comment\": \"Table contenant les informations des clients - ne pas supprimer\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/databases/1/comment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "databases",
+                "1",
+                "comment"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Archive database",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/databases/1/archive",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "databases",
+                "1",
+                "archive"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Restore database",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/databases/1/restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "databases",
+                "1",
+                "restore"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tables V2",
+      "item": [
+        {
+          "name": "List tables",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tables/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tables",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create table with comment protected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"client\",\n  \"description\": \"Clients\",\n  \"database_id\": 1,\n  \"is_protected\": true,\n  \"comment\": \"Table contenant les informations des clients.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tables",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tables"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update table with key",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Database-Key",
+                "value": "{{db_key}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"client_renamed\",\n  \"key_identifier\": \"{{db_key}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tables/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tables",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get table comment",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tables/1/comment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tables",
+                "1",
+                "comment"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Put table comment",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comment\": \"Ne jamais supprimer cette table\",\n  \"key_identifier\": \"{{db_key}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tables/1/comment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tables",
+                "1",
+                "comment"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Archive table",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Database-Key",
+                "value": "{{db_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tables/1/archive",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tables",
+                "1",
+                "archive"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Restore table",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tables/1/restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tables",
+                "1",
+                "restore"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Unlock table",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"table_id\": 1,\n  \"key_identifier\": \"{{db_key}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/unlock-table",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "unlock-table"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Columns V2",
+      "item": [
+        {
+          "name": "List columns",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/columns/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "columns",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create column with comment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"email\",\n  \"type\": \"VARCHAR\",\n  \"length\": \"255\",\n  \"nullable\": false,\n  \"unique\": true,\n  \"table_id\": 1,\n  \"comment\": \"Ne jamais supprimer cette colonne.\",\n  \"key_identifier\": \"{{db_key}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/columns",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "columns"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get column comment",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/columns/1/comment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "columns",
+                "1",
+                "comment"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Put column comment",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comment\": \"Email unique client\",\n  \"key_identifier\": \"{{db_key}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/columns/1/comment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "columns",
+                "1",
+                "comment"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Archive column",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/columns/1/archive",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "columns",
+                "1",
+                "archive"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Restore column",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/columns/1/restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "columns",
+                "1",
+                "restore"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Import Export",
+      "item": [
+        {
+          "name": "Import XML",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "database_name",
+                  "value": "imported_xml",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/import/xml",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "import",
+                "xml"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Import SQL",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/import/sql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "import",
+                "sql"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Export XML",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/export/xml/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "export",
+                "xml",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Export SQL",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/export/sql/1?download=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "export",
+                "sql",
+                "1"
+              ],
+              "query": [
+                {
+                  "key": "download",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Converters",
+      "item": [
+        {
+          "name": "XML to SQL",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"xml\": \"<table name=\\\"client\\\"><column name=\\\"id\\\" type=\\\"INT\\\" length=\\\"11\\\" primaryKey=\\\"true\\\"/></table>\",\n  \"database_name\": \"test\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/convert/xml-to-sql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "convert",
+                "xml-to-sql"
+              ]
+            }
+          }
+        },
+        {
+          "name": "SQL to XML",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sql\": \"CREATE TABLE client (id INT(11) NOT NULL AUTO_INCREMENT, email VARCHAR(255), PRIMARY KEY (id));\",\n  \"database_name\": \"test\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/convert/sql-to-xml",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "convert",
+                "sql-to-xml"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "System",
+      "item": [
+        {
+          "name": "Sync XML to Database (V3 XML source de v\u00e9rit\u00e9)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Database-Key",
+                "value": "{{db_key}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"xml\": \"<?xml version=\\\"1.0\\\"?>\\n<database name=\\\"Biblioth\u00e8que\\\">\\n  <table name=\\\"client\\\" comment=\\\"Table clients\\\" protected=\\\"true\\\" file_identifier=\\\"XML-9F4A-28BD-71A2\\\">\\n    <column name=\\\"id\\\" type=\\\"INT\\\" length=\\\"11\\\" primary_key=\\\"true\\\" auto_increment=\\\"true\\\" nullable=\\\"false\\\" comment=\\\"PK\\\"/>\\n    <column name=\\\"email\\\" type=\\\"VARCHAR\\\" length=\\\"255\\\" unique=\\\"true\\\" comment=\\\"Email unique\\\"/>\\n  </table>\\n</database>\",\n  \"key_identifier\": \"{{db_key}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/databases/1/sync-xml",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "databases",
+                "1",
+                "sync-xml"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create real MySQL database",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"database_id\": 1,\n  \"target_database_name\": \"xmlforge_real_test\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/database/create",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "database",
+                "create"
+              ]
+            }
+          }
+        },
+        {
+          "name": "History V2",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/history?limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Audit logs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/audit-logs?limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "audit-logs"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "your_jwt_token_here",
+      "type": "string"
+    },
+    {
+      "key": "db_key",
+      "value": "XML-XXXX-XXXX-XXXX",
+      "type": "string"
+    }
+  ]
+}

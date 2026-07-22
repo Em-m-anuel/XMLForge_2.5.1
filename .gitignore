@@ -1,0 +1,36 @@
+# =========================
+# React
+# =========================
+xmlforge-react/node_modules/
+xmlforge-react/dist/
+xmlforge-react/.env
+
+# =========================
+# Flask
+# =========================
+backend/venv/
+backend/.venv/
+backend/__pycache__/
+backend/.pytest_cache/
+backend/instance/
+backend/.env
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# =========================
+# VS Code
+# =========================
+.vscode/
+
+# JetBrains
+.idea/
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db

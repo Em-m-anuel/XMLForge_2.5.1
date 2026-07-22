@@ -1,0 +1,27 @@
+.timeline{ display:flex; flex-direction:column; gap:32px; max-width:1000px; margin:0 auto; width:100%; }
+.timeline-group{ display:flex; flex-direction:column; gap:16px; }
+.timeline-date{ font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.06em; padding:8px 0; border-bottom:1px solid var(--border-soft); }
+.timeline-items{ display:flex; flex-direction:column; gap:14px; }
+.timeline-item{ display:flex; gap:14px; position:relative; }
+.timeline-dot{
+  width:10px; height:10px; border-radius:50%; background:var(--accent); flex-shrink:0;
+  margin-top:18px; box-shadow:0 0 0 4px var(--accent-dim);
+}
+.timeline-card{
+  flex:1; background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; box-shadow:var(--shadow-card); transition: transform var(--duration-base) var(--ease), border-color var(--duration-base) var(--ease);
+}
+.timeline-card:hover{ transform:translateY(-2px); border-color:#333b4a; background:var(--card-hover); }
+.timeline-card-header{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:6px; }
+.timeline-user{ font-weight:700; color:var(--text); font-size:13px; }
+.timeline-action{ font-size:13px; color:var(--text-secondary); }
+.timeline-element{ font-weight:600; color:#7CACFB; font-family:var(--font-mono); font-size:13px; }
+.timeline-time{ margin-left:auto; font-size:11px; color:var(--text-tertiary); }
+.timeline-card-body{ font-size:13px; color:var(--text-secondary); }
+.timeline-type{ display:inline-block; font-size:10px; font-weight:700; text-transform:uppercase; background:var(--accent-soft); color:#7CACFB; padding:2px 8px; border-radius:100px; margin-bottom:6px; }
+.timeline-desc{ margin:6px 0; color:var(--text); line-height:1.5; }
+.timeline-ip{ font-size:11px; color:var(--text-tertiary); font-family:var(--font-mono); margin-top:4px; }
+.timeline-details{ margin-top:8px; font-size:11px; }
+.timeline-details summary{ cursor:pointer; color:var(--text-secondary); font-weight:600; }
+.timeline-details pre{ background:#12151C; border:1px solid var(--border); border-radius:6px; padding:8px; margin-top:6px; overflow:auto; white-space:pre-wrap; word-break:break-word; font-family:var(--font-mono); font-size:11px; max-height:180px; }
+.timeline-card-footer{ display:flex; gap:8px; margin-top:12px; align-items:center; flex-wrap:wrap; border-top:1px solid var(--border-soft); padding-top:10px; }

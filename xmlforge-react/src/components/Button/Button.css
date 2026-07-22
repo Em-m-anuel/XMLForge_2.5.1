@@ -1,0 +1,28 @@
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  padding:9px 16px; border-radius:var(--radius-sm);
+  border:1px solid var(--border); background:var(--card);
+  color:var(--text); font-size:13px; font-weight:500; line-height:1;
+  white-space:nowrap;
+  transition: background var(--duration-base) var(--ease), border-color var(--duration-base) var(--ease), transform var(--duration-base) var(--ease), box-shadow var(--duration-base) var(--ease);
+}
+.btn svg{ width:15px; height:15px; }
+.btn-icon{ display:inline-flex; }
+.btn:hover{ background:var(--card-hover); border-color:#333b4a; transform:translateY(-1px); }
+.btn:active{ transform:translateY(0); }
+.btn:disabled{ opacity:.4; cursor:not-allowed; transform:none; }
+
+/* Variants – harmonisés */
+.btn-primary{
+  background:var(--accent); border-color:var(--accent); color:#fff;
+  box-shadow:0 1px 0 rgba(255,255,255,.08) inset, 0 4px 14px -4px rgba(59,130,246,.5);
+}
+.btn-primary:hover{ background:#4C8DF7; border-color:#4C8DF7; box-shadow:0 1px 0 rgba(255,255,255,.1) inset, 0 6px 18px -4px rgba(59,130,246,.65); }
+.btn-danger{ background:var(--danger-soft); border-color:#EF444440; color:#FF8787; }
+.btn-danger:hover{ background:#EF444430; border-color:#EF444460; }
+.btn-ghost{ background:transparent; border-color:transparent; }
+.btn-ghost:hover{ background:var(--card-hover); transform:none; }
+
+/* Sizes */
+.btn-sm{ padding:6px 11px; font-size:12.5px; }
+.btn-full{ width:100%; }

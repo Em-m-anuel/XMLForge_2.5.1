@@ -1,0 +1,135 @@
+/* ============================================================
+   VSCodeEditor — mini VS Code / Monaco ready
+   Même style visuel pour XML et SQL, même hauteur/largeur
+   ============================================================ */
+.vs-editor{
+  display:flex; flex-direction:column;
+  background:#12151C;
+  border:1px solid var(--border-soft);
+  border-radius:var(--radius);
+  overflow:hidden;
+  box-shadow:var(--shadow-card);
+  transition: border-color var(--duration-fast) var(--ease), box-shadow var(--duration-fast) var(--ease);
+  /* Structure prête pour Monaco : body contient un mount point */
+}
+.vs-editor:hover{ border-color:#2a3446; }
+.vs-editor.vs-fullscreen{
+  position:fixed; inset:16px; z-index:200;
+  height:auto !important; width:auto !important;
+  box-shadow:var(--shadow-pop);
+}
+
+/* Header style VS Code */
+.vs-header{
+  height:36px; flex-shrink:0;
+  display:flex; align-items:center; gap:12px;
+  padding:0 14px;
+  background:var(--bg-elevated);
+  border-bottom:1px solid var(--border-soft);
+  user-select:none;
+}
+.vs-dots{ display:flex; gap:6px; align-items:center; }
+.vs-dots .dot{
+  width:10px; height:10px; border-radius:50%; display:inline-block;
+  box-shadow:0 0 0 1px rgba(0,0,0,.15) inset;
+}
+.vs-dots .red{ background:#EF4444; }
+.vs-dots .yellow{ background:#F5A623; }
+.vs-dots .green{ background:#22C55E; }
+
+.vs-title{
+  font-size:12.5px; font-weight:600; color:var(--text-secondary);
+  letter-spacing:.02em; font-family:var(--font-ui);
+}
+.vs-actions{ margin-left:auto; display:flex; align-items:center; gap:6px; }
+.vs-lang-badge{
+  font-family:var(--font-mono); font-size:10px; font-weight:700;
+  letter-spacing:.06em; padding:3px 7px; border-radius:4px;
+  background:#202636; color:var(--text-tertiary); border:1px solid var(--border-soft);
+}
+.vs-icon-btn{
+  width:26px; height:26px; border-radius:6px;
+  display:inline-flex; align-items:center; justify-content:center;
+  border:1px solid transparent; background:transparent; color:var(--text-tertiary);
+  cursor:pointer; transition: all var(--duration-fast) var(--ease);
+}
+.vs-icon-btn svg{ width:14px; height:14px; }
+.vs-icon-btn:hover{ background:var(--card-hover); color:var(--text); border-color:var(--border); }
+
+/* Body */
+.vs-body{
+  display:flex; flex:1; min-height:0; overflow:hidden; position:relative;
+}
+.vs-gutter{
+  width:48px; flex-shrink:0;
+  background:#0F1117; /* légèrement plus sombre que editor */
+  border-right:1px solid var(--border-soft);
+  padding:14px 0;
+  overflow:hidden; /* sync scroll via JS */
+  text-align:right;
+  user-select:none;
+}
+.vs-line-num{
+  font-family:var(--font-mono); font-size:12px; line-height:21px; /* 1.75 * 12 */
+  color:var(--text-tertiary); padding-right:12px; opacity:.7;
+}
+.vs-content{
+  position:relative; flex:1; overflow:hidden; background:#12151C;
+}
+
+/* Highlight layer – behind textarea */
+.vs-highlight{
+  position:absolute; inset:0;
+  margin:0; padding:14px 16px;
+  font-family:var(--font-mono); font-size:12px; line-height:21px;
+  white-space:pre; word-wrap:normal; overflow:hidden;
+  pointer-events:none;
+  color:var(--text);
+}
+
+/* Textarea editable – overlay transparent text with caret visible */
+.vs-textarea{
+  position:absolute; inset:0;
+  padding:14px 16px; margin:0;
+  font-family:var(--font-mono); font-size:12px; line-height:21px;
+  background:transparent;
+  border:none; outline:none; resize:none;
+  color:transparent; /* texte transparent, on voit highlight derrière */
+  caret-color:var(--text);
+  white-space:pre; word-wrap:normal; overflow:auto;
+  /* Pour Firefox */
+  -moz-osx-font-smoothing:grayscale;
+}
+.vs-textarea::selection{
+  background:rgba(59,130,246,.35);
+}
+
+/* Readonly variant – pre visible, pas de textarea transparent */
+.vs-readonly .vs-highlight{ display:none; }
+.vs-pre-readonly{
+  margin:0; padding:14px 16px;
+  font-family:var(--font-mono); font-size:12px; line-height:21px;
+  white-space:pre; word-wrap:normal; overflow:auto;
+  color:var(--text);
+  height:100%;
+}
+
+/* Tokens – coloration syntaxique proche VS Code Dark+ */
+.token-tag{ color:#7CACFB; font-weight:600; }
+.token-attr{ color:#5EE29A; }
+.token-val{ color:#FFB86B; }
+.token-cmt{ color:var(--text-tertiary); font-style:italic; }
+
+.token-kw{ color:#C792EA; font-weight:600; }
+.token-type{ color:#FFB86B; }
+.token-fn{ color:#7CACFB; font-weight:600; }
+.token-str{ color:#FFB86B; }
+.token-num{ color:#5EE29A; }
+
+/* Scrollbar dans éditeur – plus discret */
+.vs-content ::-webkit-scrollbar{ width:8px; height:8px; }
+.vs-content ::-webkit-scrollbar-thumb{ background:#2A303C; border-radius:8px; }
+.vs-textarea::-webkit-scrollbar{ width:8px; height:8px; }
+
+/* Focus state */
+.vs-editor:focus-within{ border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-dim); }

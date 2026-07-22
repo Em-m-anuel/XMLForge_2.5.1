@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           elementFormDefault="qualified">
+
+  <!-- XMLForge XML Specification V3 - XML est source de vérité -->
+  <xs:annotation>
+    <xs:documentation>
+      XMLForge Specification
+      La base de données est décrite entièrement en XML.
+      Le backend synchronise la base logique à partir de ce XML.
+      Le SQL est toujours généré depuis la base logique.
+
+      Exemple complet en bas du fichier.
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Types simples -->
+  <xs:simpleType name="booleanString">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="true"/>
+      <xs:enumeration value="false"/>
+      <xs:enumeration value="1"/>
+      <xs:enumeration value="0"/>
+      <xs:enumeration value="yes"/>
+      <xs:enumeration value="no"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="fileIdentifierType">
+    <xs:annotation>
+      <xs:documentation>Format XML-XXXX-XXXX-XXXX ou custom, 4-64 chars</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:minLength value="4"/>
+      <xs:maxLength value="64"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="statusType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="ACTIVE"/>
+      <xs:enumeration value="ARCHIVED"/>
+      <xs:enumeration value="active"/>
+      <xs:enumeration value="archived"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Column -->
+  <xs:complexType name="columnType">
+    <xs:attribute name="name" type="xs:string" use="required">
+      <xs:annotation><xs:documentation>Nom colonne, obligatoire, unique par table</xs:documentation></xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="type" type="xs:string" use="required">
+      <xs:annotation><xs:documentation>Type SQL: INT, VARCHAR, TEXT, DATETIME, DECIMAL, BOOLEAN, etc.</xs:documentation></xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="length" type="xs:string" use="optional" default="-">
+      <xs:annotation><xs:documentation>Longueur: 255, 11, 10,2, ou - si non applicable</xs:documentation></xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="nullable" type="booleanString" use="optional" default="true">
+      <xs:annotation><xs:documentation>true si NULL autorisé, false = NOT NULL</xs:documentation></xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="primary_key" type="booleanString" use="optional" default="false">
+      <xs:annotation><xs:documentation>Alias: primaryKey</xs:documentation></xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="primaryKey" type="booleanString" use="optional" default="false"/>
+    <xs:attribute name="foreign_key" type="booleanString" use="optional" default="false"/>
+    <xs:attribute name="foreignKey" type="booleanString" use="optional" default="false"/>
+    <xs:attribute name="references" type="xs:string" use="optional">
+      <xs:annotation><xs:documentation>Format table(colonne) ex: client(id)</xs:documentation></xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="unique" type="booleanString" use="optional" default="false"/>
+    <xs:attribute name="auto_increment" type="booleanString" use="optional" default="false"/>
+    <xs:attribute name="autoIncrement" type="booleanString" use="optional" default="false"/>
+    <xs:attribute name="default" type="xs:string" use="optional">
+      <xs:annotation><xs:documentation>Valeur par défaut</xs:documentation></xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="comment" type="xs:string" use="optional"/>
+    <xs:attribute name="uuid" type="xs:string" use="optional"/>
+    <xs:attribute name="status" type="statusType" use="optional" default="ACTIVE"/>
+    <xs:attribute name="archived" type="booleanString" use="optional" default="false"/>
+  </xs:complexType>
+
+  <!-- Table -->
+  <xs:complexType name="tableType">
+    <xs:sequence>
+      <xs:element name="column" type="columnType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="description" type="xs:string" use="optional"/>
+    <xs:attribute name="protected" type="booleanString" use="optional" default="false">
+      <xs:annotation><xs:documentation>Si true, table protégée nécessite file_identifier ou clé base</xs:documentation></xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="file_identifier" type="fileIdentifierType" use="optional">
+      <xs:annotation><xs:documentation>Identifiant fichier requis pour déverrouiller table protégée. Format XML-XXXX-XXXX-XXXX recommandé. Alias: fileIdentifier</xs:documentation></xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="fileIdentifier" type="fileIdentifierType" use="optional"/>
+    <xs:attribute name="comment" type="xs:string" use="optional">
+      <xs:annotation><xs:documentation>Commentaire libre: ex "Table contenant les informations des clients."</xs:documentation></xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="archived" type="booleanString" use="optional" default="false"/>
+    <xs:attribute name="status" type="statusType" use="optional" default="ACTIVE"/>
+    <xs:attribute name="uuid" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <!-- Database -->
+  <xs:complexType name="databaseType">
+    <xs:sequence>
+      <xs:element name="table" type="tableType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:string" use="required">
+      <xs:annotation><xs:documentation>Nom base, obligatoire</xs:documentation></xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="description" type="xs:string" use="optional"/>
+    <xs:attribute name="comment" type="xs:string" use="optional"/>
+    <xs:attribute name="uuid" type="xs:string" use="optional"/>
+    <xs:attribute name="status" type="statusType" use="optional" default="ACTIVE"/>
+  </xs:complexType>
+
+  <!-- Root peut être database ou table ou tables -->
+  <xs:element name="database" type="databaseType"/>
+  <xs:element name="table" type="tableType"/>
+  <xs:element name="tables">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="table" type="tableType" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>
