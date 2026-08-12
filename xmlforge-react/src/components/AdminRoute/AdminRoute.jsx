@@ -1,43 +1,30 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { Loader } from '../Loader/Loader'
-import { EmptyState } from '../EmptyState/EmptyState'
-import { Icons } from '../../utils/icons'
 
-export function AdminRoute({ children }){
-  const { isPrivileged, isAuthenticated, loading, user } = useAuth()
+export function AdminRoute({ children }) {
+  const { isAdmin, loading, isAuthenticated } = useAuth()
 
-  if(loading){
+  if (loading) {
     return (
-      <div style={{height:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--bg)'}}>
-        <Loader size={28} />
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', color: 'var(--text)' }}>
+        <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Vérification des privilèges...</span>
       </div>
     )
   }
 
-  if(!isAuthenticated){
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />
   }
 
-  if(!isPrivileged){
-    // Page 403 intégrée, même identité visuelle
+  if (!isAdmin) {
     return (
-      <div style={{height:'100vh', display:'flex', flexDirection:'column', background:'var(--bg)'}}>
-        <div style={{flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:20}}>
-          <div style={{maxWidth:460, width:'100%', textAlign:'center'}}>
-            <EmptyState
-              icon={Icons.shield}
-              title="Accès restreint"
-              description={`Cette page est réservée à l'administrateur. Connecté en tant que ${user?.email || 'utilisateur'} vous n'avez pas les permissions nécessaires. Votre tentative a été enregistrée dans l'audit log.`}
-            />
-            <div style={{marginTop:16, display:'flex', gap:10, justifyContent:'center'}}>
-              <a href="/dashboard" className="btn btn-primary" style={{textDecoration:'none'}}>← Retour Dashboard</a>
-            </div>
-            <div style={{marginTop:24, fontSize:11, color:'var(--text-tertiary)', fontFamily:'var(--font-mono)'}}>
-              ADMIN_EMAILS = ['nyx@xmlforge.io'] • Rôle actuel: {user?.email} • Préparé pour futur système de rôles (ADMIN, USER) via user.roles
-            </div>
-          </div>
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ fontSize: '48px' }}>🔒</div>
+        <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text)' }}>Accès refusé</div>
+        <div style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '320px', textAlign: 'center' }}>
+          Cette page est réservée à l'administrateur <b>nyx@xmlforge.io</b>. Vous n'avez pas les privilèges requis.
         </div>
+        <button className="btn btn-primary" onClick={() => window.location.href = '/dashboard'}>Retour Dashboard</button>
       </div>
     )
   }

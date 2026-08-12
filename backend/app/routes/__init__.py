@@ -1,5 +1,5 @@
 """
-Enregistrement de tous les Blueprints
+Enregistrement de tous les Blueprints V4
 Supporte /api/* et /* pour compat frontend
 """
 from .auth import auth_bp
@@ -15,6 +15,10 @@ from .database_create import db_create_bp
 from .metadata import metadata_bp
 from .audit import audit_bp
 from .sync import sync_bp
+from .users import users_bp
+from .rows import rows_bp
+from .projects import projects_bp
+from .tcp import tcp_bp
 
 def _clone_blueprint(bp, new_name):
     from flask import Blueprint
@@ -37,6 +41,10 @@ def register_routes(app):
         metadata_bp,
         audit_bp,
         sync_bp,
+        users_bp,
+        rows_bp,
+        projects_bp,
+        tcp_bp,
     ]
 
     # Sans préfixe (spec)

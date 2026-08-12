@@ -14,9 +14,9 @@ function downloadBlob(blob, filename) {
 export const exportService = {
   exportXml: async (databaseId, { download = false } = {}) => {
     if (download) {
-      // Pour download, on a besoin de fetch brut avec blob
       const token = localStorage.getItem('xmlforge_token')
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/export/xml/${databaseId}?download=true`, {
+      const base = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+      const res = await fetch(`${base}/export/xml/${databaseId}?download=true`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (!res.ok) throw new Error('Erreur export XML')
@@ -25,14 +25,15 @@ export const exportService = {
       return { downloaded: true }
     } else {
       const res = await apiClient.get(`/export/xml/${databaseId}`)
-      return res.data // {xml, database_id}
+      return res.data
     }
   },
 
   exportSql: async (databaseId, { download = false } = {}) => {
     if (download) {
       const token = localStorage.getItem('xmlforge_token')
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/export/sql/${databaseId}?download=true`, {
+      const base = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+      const res = await fetch(`${base}/export/sql/${databaseId}?download=true`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (!res.ok) throw new Error('Erreur export SQL')
@@ -44,4 +45,39 @@ export const exportService = {
       return res.data
     }
   },
+
+  // Table exports (V4)
+  exportTableXml: async (tableId, { download = false } = {}) => {
+    if (download) {
+      const token = localStorage.getItem('xmlforge_token')
+      const base = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+      const res = await fetch(`${base}/export/table-xml/${tableId}?download=true`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (!res.ok) throw new Error('Erreur export XML table')
+      const blob = await res.blob()
+      downloadBlob(blob, `table_${tableId}.xml`)
+      return { downloaded: true }
+    } else {
+      const res = await apiClient.get(`/export/table-xml/${tableId}`)
+      return res.data
+    }
+  },
+
+  exportTableSql: async (tableId, { download = false } = {}) => {
+    if (download) {
+      const token = localStorage.getItem('xmlforge_token')
+      const base = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+      const res = await fetch(`${base}/export/table-sql/${tableId}?download=true`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (!res.ok) throw new Error('Erreur export SQL table')
+      const blob = await res.blob()
+      downloadBlob(blob, `table_${tableId}.sql`)
+      return { downloaded: true }
+    } else {
+      const res = await apiClient.get(`/export/table-sql/${tableId}`)
+      return res.data
+    }
+  }
 }

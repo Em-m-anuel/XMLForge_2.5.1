@@ -1,7 +1,0 @@
-.card{
-  background:var(--card); border:1px solid var(--border);
-  border-radius:var(--radius); padding:18px;
-  box-shadow:var(--shadow-card);
-  transition: transform var(--duration-base) var(--ease), border-color var(--duration-base) var(--ease), background var(--duration-base) var(--ease), box-shadow var(--duration-base) var(--ease);
-}
-.card-hoverable:hover{ transform:translateY(-3px); border-color:#333b4a; background:var(--card-hover); box-shadow:var(--shadow-card); }

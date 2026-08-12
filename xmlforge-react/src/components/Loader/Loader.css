@@ -1,5 +1,0 @@
-.loader{
-  display:inline-block; border:2px solid var(--border); border-top-color:var(--accent);
-  border-radius:50%; animation:spin .7s linear infinite;
-}
-@keyframes spin{ to{ transform:rotate(360deg); } }

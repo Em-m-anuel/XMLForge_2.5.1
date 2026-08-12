@@ -1,142 +1,133 @@
-import { useEffect, useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Sidebar } from '../../components/Sidebar/Sidebar'
-import { Navbar } from '../../components/Navbar/Navbar'
-import { historyService } from '../../services/historyService'
 import { useToast } from '../../components/Toast/Toast'
-import { SkeletonTable } from '../../components/Skeleton/Skeleton'
-import { EmptyState } from '../../components/EmptyState/EmptyState'
-import { Button } from '../../components/Button/Button'
-import { Badge } from '../../components/Badge/Badge'
-import { Icons } from '../../utils/icons'
-import './History.css'
+import { historyService } from '../../services/historyService'
 
-function formatDate(iso){
-  if(!iso) return '—'
-  const d = new Date(iso)
-  const today = new Date()
-  const isToday = d.toDateString() === today.toDateString()
-  const yesterday = new Date(today); yesterday.setDate(today.getDate()-1)
-  const isYesterday = d.toDateString() === yesterday.toDateString()
-  let dayLabel = d.toLocaleDateString('fr-FR', { day:'numeric', month:'long' })
-  if(isToday) dayLabel = "Aujourd'hui"
-  else if(isYesterday) dayLabel = "Hier"
-  return `${dayLabel} à ${d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})}`
-}
-
-function groupByDate(items){
-  const groups = {}
-  items.forEach(item=>{
-    const date = new Date(item.created_at || item.date)
-    const key = date.toDateString()
-    if(!groups[key]){
-      const today = new Date().toDateString()
-      const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1)
-      let label = date.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' })
-      if(key === today) label = "Aujourd'hui"
-      else if(key === yesterday.toDateString()) label = "Hier"
-      groups[key] = { label, items: [] }
-    }
-    groups[key].items.push(item)
-  })
-  return Object.values(groups)
-}
-
-export function HistoryPage(){
+export function HistoryPage() {
+  const navigate = useNavigate()
   const { notify } = useToast()
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('all')
-  const [databaseFilter, setDatabaseFilter] = useState('')
-  const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState('all')
+  const [dbFilter, setDbFilter] = useState('')
 
-  const fetchHistory = async ()=>{
+  const fetchHistory = useCallback(async () => {
     setLoading(true)
-    try{
-      const data = await historyService.list(200, databaseFilter ? Number(databaseFilter) : null)
+    try {
+      const data = await historyService.list(200, null)
       setHistory(data)
-    }catch(err){
-      notify('error','Erreur historique', err.message)
-    }finally{
+    } catch (err) {
+      notify('error', 'Erreur', err.message)
+    } finally {
       setLoading(false)
     }
-  }
+  }, [notify])
 
-  useEffect(()=>{ fetchHistory() },[databaseFilter])
+  useEffect(() => { fetchHistory() }, [fetchHistory])
 
-  const filtered = history.filter(h=>{
-    if(filter!=='all' && h.element_type !== filter) return false
-    if(search){
-      const q = search.toLowerCase()
-      return (h.user_name?.toLowerCase().includes(q) || h.element_name?.toLowerCase().includes(q) || h.description?.toLowerCase().includes(q))
-    }
-    return true
+  const filtered = history.filter(h => {
+    const typeOk = typeFilter === 'all' || (h.element_type && h.element_type.toLowerCase().includes(typeFilter.toLowerCase()))
+    const dbOk = !dbFilter.trim() || (h.element_name && h.element_name.toLowerCase().includes(dbFilter.toLowerCase())) || (h.description && h.description.toLowerCase().includes(dbFilter.toLowerCase())) || (h.database_id && String(h.database_id).includes(dbFilter))
+    return typeOk && dbOk
   })
 
-  const grouped = groupByDate(filtered)
+  const groupByDate = () => {
+    const groups = {}
+    filtered.forEach(item => {
+      const date = new Date(item.created_at || item.date || item.timestamp)
+      const today = new Date()
+      const yesterday = new Date()
+      yesterday.setDate(today.getDate() - 1)
+      let label = date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+      if (date.toDateString() === today.toDateString()) label = "Aujourd'hui"
+      else if (date.toDateString() === yesterday.toDateString()) label = "Hier"
+      if (!groups[label]) groups[label] = []
+      groups[label].push(item)
+    })
+    return groups
+  }
+
+  const groups = groupByDate()
 
   return (
-    <div className="screen-dashboard">
-      <Sidebar onSettings={()=>notify('info','Paramètres','Bientôt disponible.')} />
+    <div className="screen active" id="screen-history">
+      <aside className="sidebar">
+        <Sidebar active="history" />
+      </aside>
       <div className="dash-main">
-        <Navbar searchValue={search} onSearchChange={setSearch} />
-
+        <div className="page-header">
+          <a className="back-link" href="#" onClick={(e) => { e.preventDefault(); navigate('/dashboard') }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
+            Bases de données
+          </a>
+        </div>
         <div className="dash-content">
           <div className="dash-head">
             <div>
-              <h1>Historique des actions</h1>
-              <p>{filtered.length} événements · Timeline détaillée avec UUID, IP, avant/après · Visible uniquement par nyx@xmlforge.io (préparé pour rôles ADMIN)</p>
+              <h1>Historique</h1>
+              <p>Timeline des actions métier effectuées sur vos bases</p>
             </div>
-            <div className="dash-actions">
-              <select className="form-input" value={filter} onChange={e=>setFilter(e.target.value)} style={{width:160, height:36}}>
-                <option value="all">Tous les éléments</option>
-                <option value="base">Bases</option>
-                <option value="table">Tables</option>
-                <option value="colonne">Colonnes</option>
+            <div className="filters-bar">
+              <select className="form-input" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+                <option value="all">Tous les types</option>
+                <option value="base">Base</option>
+                <option value="table">Table</option>
+                <option value="colonne">Colonne</option>
               </select>
-              <input className="form-input" placeholder="Database ID" value={databaseFilter} onChange={e=>setDatabaseFilter(e.target.value)} style={{width:130, height:36}} />
-              <Button size="sm" onClick={fetchHistory}>Actualiser</Button>
+              <input className="form-input" placeholder="Filtrer par base..." value={dbFilter} onChange={e => setDbFilter(e.target.value)} />
+              <button className="btn btn-sm" onClick={() => { notify('info', 'Actualisé', 'L’historique a été rechargé.'); fetchHistory() }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6" /><path d="M3 12a9 9 0 0 1 15-6.7L21 8" /><path d="M3 22v-6h6" /><path d="M21 12a9 9 0 0 1-15 6.7L3 16" /></svg>
+                Actualiser
+              </button>
             </div>
           </div>
 
           {loading ? (
-            <SkeletonTable rows={8} />
-          ) : filtered.length===0 ? (
-            <EmptyState icon={Icons.db} title="Aucun historique" description="Aucune action enregistrée pour le moment ou filtre trop restrictif." />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="skeleton" style={{ height: '80px', borderRadius: '10px' }}></div>
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+              <div className="es-title">Aucun événement</div>
+              <div className="es-desc">Aucune entrée d'historique ne correspond aux filtres sélectionnés.</div>
+            </div>
           ) : (
-            <div className="timeline">
-              {grouped.map((group, gi)=>(
-                <div key={gi} className="timeline-group">
-                  <div className="timeline-date">{group.label}</div>
-                  <div className="timeline-items">
-                    {group.items.map(item=>(
-                      <div key={item.id} className="timeline-item">
-                        <div className="timeline-dot" />
-                        <div className="timeline-card">
-                          <div className="timeline-card-header">
-                            <span className="timeline-user">{item.user_name}</span>
-                            <span className="timeline-action">{item.action_type}</span>
-                            <span className="timeline-element">{item.element_name}</span>
-                            <span className="timeline-time">{formatDate(item.created_at)}</span>
+            <div>
+              {Object.entries(groups).map(([label, items]) => (
+                <div key={label}>
+                  <div className="tl-group-label">{label}</div>
+                  {items.map((h, idx) => {
+                    const typeBadge = h.element_type === 'base' ? 'badge-blue' : h.element_type === 'table' ? 'badge-green' : h.element_type === 'colonne' ? 'badge-warn' : 'badge-gray'
+                    const time = h.created_at ? new Date(h.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''
+                    return (
+                      <div key={h.id || idx} className="tl-card">
+                        <div className="tl-dot-col"><span className="tl-dot"></span></div>
+                        <div className="tl-body">
+                          <div className="tl-head">
+                            <span className="who">{h.user_name} {h.action_type} <b>{h.element_name}</b></span>
+                            <span className={`badge ${typeBadge}`}>{h.element_type}</span>
+                            <span className="time">{time}</span>
                           </div>
-                          <div className="timeline-card-body">
-                            <div className="timeline-type">{item.element_type}</div>
-                            <div className="timeline-desc">{item.description}</div>
-                            {item.ip_address && <div className="timeline-ip">IP: {item.ip_address} · UUID: {item.uuid?.slice(0,8)}...</div>}
-                            <div style={{display:'flex', gap:8, marginTop:8, flexWrap:'wrap'}}>
-                              {item.before && <details className="timeline-details"><summary>Avant</summary><pre>{typeof item.before === 'string' ? item.before.slice(0,500) : JSON.stringify(item.before).slice(0,500)}</pre></details>}
-                              {item.after && <details className="timeline-details"><summary>Après</summary><pre>{typeof item.after === 'string' ? item.after.slice(0,500) : JSON.stringify(item.after).slice(0,500)}</pre></details>}
+                          <div className="tl-desc">{h.description}</div>
+                          <div className="tl-meta-row">
+                            {h.database_id && <span className="badge badge-blue">DB {h.database_id}</span>}
+                            {h.table_id && <span className="badge badge-gray">Table {h.table_id}</span>}
+                            {h.ip_address && <span className="ip">IP {h.ip_address}</span>}
+                          </div>
+                          {(h.before || h.after) && (
+                            <div className="tl-details">
+                              before: {h.before ? (typeof h.before === 'string' ? h.before.slice(0, 200) : JSON.stringify(h.before).slice(0,200)) : 'null'} → after: {h.after ? (typeof h.after === 'string' ? h.after.slice(0,200) : JSON.stringify(h.after).slice(0,200)) : 'null'}
                             </div>
-                          </div>
-                          <div className="timeline-card-footer">
-                            <Badge variant="blue">{item.element_type}</Badge>
-                            {item.database_id && <Badge variant="blue">DB {item.database_id}</Badge>}
-                            {item.table_id && <Badge variant="green">Table {item.table_id}</Badge>}
-                            <span className="dim" style={{fontSize:10, fontFamily:'var(--font-mono)'}}>{item.uuid?.slice(0,8)}...</span>
-                          </div>
+                          )}
+                          {h.uuid && <div className="tl-footer">UUID {h.uuid}</div>}
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    )
+                  })}
                 </div>
               ))}
             </div>

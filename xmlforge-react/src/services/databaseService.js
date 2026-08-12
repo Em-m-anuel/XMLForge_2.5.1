@@ -11,8 +11,8 @@ export const databaseService = {
     return res.data
   },
 
-  create: async ({ name, description, comment }) => {
-    const res = await apiClient.post('/databases', { name, description, comment })
+  create: async ({ name, description }) => {
+    const res = await apiClient.post('/databases', { name, description })
     return res.data
   },
 
@@ -33,16 +33,6 @@ export const databaseService = {
 
   restore: async (id) => {
     const res = await apiClient.post(`/databases/${id}/restore`)
-    return res.data
-  },
-
-  getComment: async (id) => {
-    const res = await apiClient.get(`/databases/${id}/comment`)
-    return res.data
-  },
-
-  updateComment: async (id, comment) => {
-    const res = await apiClient.put(`/databases/${id}/comment`, { comment })
     return res.data
   },
 

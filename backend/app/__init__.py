@@ -1,13 +1,18 @@
 """
-Factory Flask App XMLForge V2
-- Ajout SocketIO
-- Création tables avec nouvelles métadonnées V2
+Factory Flask App XMLForge V4
+- V2 métadonnées
+- V3 XML source de vérité
+- V4 admin, rows, unlocks personnels, Monaco, project export
 """
 import os
+import logging
 from flask import Flask
 from .config import Config
 from .extensions import db, jwt, bcrypt, cors, socketio
 from .routes import register_routes
+from .tcp import TCPServer
+
+logger = logging.getLogger(__name__)
 
 def create_app(config_class=Config):
     flask_app = Flask(__name__)
@@ -42,33 +47,54 @@ def create_app(config_class=Config):
             _migrate_v2(flask_app)
         except Exception as e:
             print(f"[Migration V2] Note: {e}")
+        try:
+            _migrate_v4(flask_app)
+        except Exception as e:
+            print(f"[Migration V4] Note: {e}")
+        
+        # Initialiser le serveur TCP/IP
+        try:
+            tcp_server = TCPServer(host='0.0.0.0', port=3307, flask_app=flask_app)
+            tcp_server.start()
+            flask_app.tcp_server = tcp_server
+            logger.info("Serveur TCP/IP démarré sur le port 3307")
+        except Exception as e:
+            logger.error(f"Erreur démarrage serveur TCP: {e}")
+            flask_app.tcp_server = None
 
     @flask_app.route('/health', methods=['GET'])
     def health():
-        return {"status": "ok", "service": "XMLForge Backend V2", "version": "2.0.0"}
+        return {"status": "ok", "service": "XMLForge Backend V4", "version": "4.0.0"}
 
     @flask_app.route('/', methods=['GET'])
     def index():
         return {
-            "service": "XMLForge Backend API V2",
-            "version": "2.0.0",
-            "features": ["UUID", "Comments", "Status ACTIVE/ARCHIVED", "Last user", "History V2 IP+before/after", "AuditLog", "SocketIO", "Converters"],
+            "service": "XMLForge Backend API V4",
+            "version": "4.0.0",
+            "features": [
+                "UUID", "Comments (legacy)", "Status ACTIVE/ARCHIVED", "Last user",
+                "History V2 IP+before/after", "AuditLog", "SocketIO", "Converters",
+                "Admin only nyx@xmlforge.io", "Users management",
+                "Table rows / data", "Monaco Editor", "Personal unlocks",
+                "Project export/import with rows", "TCP/IP Server"
+            ],
             "endpoints": [
                 "POST /register", "POST /login", "GET /me", "POST /logout",
                 "GET /databases", "POST /databases", "GET /databases/<id>", "PUT /databases/<id>", "DELETE /databases/<id>",
                 "POST /databases/<id>/archive", "POST /databases/<id>/restore",
-                "GET /databases/<id>/comment", "PUT /databases/<id>/comment",
                 "GET /tables/<database_id>", "POST /tables", "PUT /tables/<id>", "DELETE /tables/<id>",
                 "POST /tables/<id>/archive", "POST /tables/<id>/restore",
-                "GET /tables/<id>/comment", "PUT /tables/<id>/comment",
                 "GET /columns/<table_id>", "POST /columns", "PUT /columns/<id>", "DELETE /columns/<id>",
-                "POST /columns/<id>/archive", "POST /columns/<id>/restore",
-                "GET /columns/<id>/comment", "PUT /columns/<id>/comment",
                 "POST /import/xml", "POST /import/sql",
                 "GET /export/xml/<id>", "GET /export/sql/<id>",
+                "GET /export/table-xml/<id>", "GET /export/table-sql/<id>",
                 "POST /convert/xml-to-sql", "POST /convert/sql-to-xml",
                 "POST /database/create", "POST /unlock-table",
-                "GET /history", "GET /audit-logs",
+                "GET /history (admin)", "GET /audit-logs (admin)",
+                "GET /users (admin)", "POST /users (admin)", "PUT /users/<id> (admin)", "DELETE /users/<id> (admin)", "POST /users/<id>/reset-password (admin)", "POST /users/<id>/toggle-active (admin)",
+                "GET /tables/<id>/rows", "POST /tables/<id>/rows", "PUT /tables/<id>/rows/<row_id>", "DELETE /tables/<id>/rows/<row_id>",
+                "GET /export/project/<id>", "POST /import/project",
+                "GET /tcp/credentials", "POST /tcp/credentials/show-password", "GET /tcp/sessions", "GET /tcp/status",
                 "WebSocket events: new_database, new_table, new_column, modification, suppression, import_xml, export_sql, xmlforge_event"
             ]
         }
@@ -119,3 +145,45 @@ def _migrate_v2(flask_app):
                     db.session.rollback()
                 except:
                     pass
+
+def _migrate_v4(flask_app):
+    from sqlalchemy import text, inspect
+    checks = [
+        ("users", "is_active", "BOOLEAN DEFAULT 1"),
+        ("users", "last_login", "DATETIME"),
+        ("users", "updated_at", "DATETIME"),
+        ("table_rows", "id", "INTEGER"),  # dummy check, create_all will handle
+        ("table_unlocks", "id", "INTEGER"),
+    ]
+    # For users table, add missing columns
+    user_checks = [
+        ("users", "is_active", "BOOLEAN DEFAULT 1"),
+        ("users", "last_login", "DATETIME"),
+        ("users", "updated_at", "DATETIME"),
+    ]
+    with flask_app.app_context():
+        inspector = inspect(db.engine)
+        if "users" in inspector.get_table_names():
+            cols = [c['name'] for c in inspector.get_columns("users")]
+            for table, column, coltype in user_checks:
+                if column not in cols:
+                    try:
+                        if "BOOLEAN" in coltype:
+                            # SQLite BOOLEAN is INTEGER
+                            sql = f'ALTER TABLE {table} ADD COLUMN {column} INTEGER DEFAULT 1'
+                        else:
+                            sql = f'ALTER TABLE {table} ADD COLUMN {column} {coltype}'
+                        db.session.execute(text(sql))
+                        db.session.commit()
+                        print(f"[Migration V4] Ajouté {table}.{column}")
+                    except Exception as e:
+                        print(f"[Migration V4] Skip {table}.{column}: {e}")
+                        try:
+                            db.session.rollback()
+                        except:
+                            pass
+        # Ensure new tables exist (create_all already called, but just in case)
+        try:
+            db.create_all()
+        except Exception as e:
+            print(f"[Migration V4] create_all error: {e}")

@@ -1,15 +1,17 @@
 """
-Routes AuditLog - audit indépendant
+Routes AuditLog - V4 admin only (nyx@xmlforge.io)
 """
 from flask import Blueprint, request
 from flask_jwt_extended import jwt_required
 from ..utils.responses import success_response, error_response
 from ..services.audit_service import AuditService
+from ..auth.decorators import admin_required
 
 audit_bp = Blueprint('audit', __name__)
 
 @audit_bp.route('/audit-logs', methods=['GET'])
 @jwt_required()
+@admin_required
 def get_audit_logs():
     try:
         limit = int(request.args.get('limit', 100))
@@ -22,6 +24,6 @@ def get_audit_logs():
 
 @audit_bp.route('/audit', methods=['GET'])
 @jwt_required()
+@admin_required
 def get_audit_alias():
-    # Alias pour /audit-logs
     return get_audit_logs()

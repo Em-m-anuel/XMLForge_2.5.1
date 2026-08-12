@@ -1,6 +1,5 @@
 """
-Routes Auth - /register, /login, /me
-V2 : audit IP + commentaires
+Routes Auth - V4 avec clear unlocks on logout
 """
 from flask import Blueprint, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -8,6 +7,7 @@ from ..utils.validators import RegisterSchema, LoginSchema
 from ..utils.responses import success_response, error_response
 from ..services.auth_service import AuthService
 from ..services.audit_service import AuditService
+from ..services.unlock_service import UnlockService
 from marshmallow import ValidationError
 
 auth_bp = Blueprint('auth', __name__)
@@ -86,6 +86,11 @@ def logout():
     try:
         user_id = int(get_jwt_identity())
         user = AuthService.get_user_by_id(int(user_id))
+        # V4: clear personal unlocks on logout
+        try:
+            UnlockService.clear_user_unlocks(int(user_id))
+        except Exception:
+            pass
         AuditService.log(
             user_id=user.id if user else None,
             user_name=user.full_name if user else None,
@@ -93,7 +98,7 @@ def logout():
             action="DECONNEXION",
             element_type="auth",
             element_name=user.email if user else "unknown",
-            description="Déconnexion"
+            description="Déconnexion - unlocks effacés"
         )
         return success_response(None, "Déconnexion réussie - supprimez le token côté client")
     except Exception as e:

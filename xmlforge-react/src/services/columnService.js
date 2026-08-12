@@ -39,14 +39,4 @@ export const columnService = {
     const res = await apiClient.post(`/columns/${id}/restore`, body)
     return res.data
   },
-
-  getComment: async (id) => {
-    const res = await apiClient.get(`/columns/${id}/comment`)
-    return res.data
-  },
-
-  updateComment: async (id, comment, key) => {
-    const res = await apiClient.put(`/columns/${id}/comment`, { comment, key_identifier: key })
-    return res.data
-  },
 }

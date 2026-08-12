@@ -1,15 +1,17 @@
 """
-Route History
+Route History - V4 admin only (nyx@xmlforge.io)
 """
 from flask import Blueprint, request
 from flask_jwt_extended import jwt_required
 from ..utils.responses import success_response, error_response
 from ..services.history_service import HistoryService
+from ..auth.decorators import admin_required
 
 history_bp = Blueprint('history', __name__)
 
 @history_bp.route('/history', methods=['GET'])
 @jwt_required()
+@admin_required
 def get_history():
     try:
         limit = int(request.args.get('limit', 100))
@@ -20,7 +22,6 @@ def get_history():
             except:
                 database_id = None
 
-        # Limiter max
         limit = min(limit, 500)
 
         entries = HistoryService.get_all(limit=limit, database_id=database_id)

@@ -1,5 +1,5 @@
 """
-Service Table V3 - XML source de vérité, file_identifier, protection renforcée
+Service Table V4 - protection personnelle par utilisateur + file_identifier
 """
 import uuid as uuid_lib
 from ..extensions import db
@@ -24,16 +24,30 @@ class TableService:
         return Table.query.get(table_id)
 
     @staticmethod
-    def _check_protection(table, provided_key):
+    def _check_protection(table, provided_key=None, user_id=None):
+        """
+        V4: vérifie protection personnelle
+        - Si table non protégée → OK
+        - Si user a unlock personnel valide → OK
+        - Sinon vérifie clé fournie
+        """
         if not table.is_protected:
             return True, None
+
+        # Vérifier unlock personnel
+        if user_id:
+            from ..models.table_unlock import TableUnlock
+            unlock = TableUnlock.query.filter_by(user_id=user_id, table_id=table.id).first()
+            if unlock and not unlock.is_expired():
+                return True, None
+
         if not provided_key:
             return False, f"Table '{table.name}' protégée. Clé_identifiant requise (file_identifier ou clé base)."
+
         database = Database.query.get(table.database_id)
         if not database:
             return False, "Base parente introuvable"
 
-        # Clés valides : file_identifier de la table si présent, sinon clé base, mais on accepte les deux pour souplesse
         valid_keys = []
         if table.file_identifier:
             valid_keys.append(table.file_identifier)
@@ -60,9 +74,6 @@ class TableService:
 
         if Table.query.filter_by(database_id=database_id, name=name).first():
             return None, f"Table '{name}' existe déjà dans cette base"
-
-        # Si protégée et pas de file_identifier fourni, on génère ou on utilise clé base? On laisse vide, protection via clé base
-        # Si file_identifier fourni, on le stocke
 
         table = Table(
             uuid=str(uuid_lib.uuid4()),
@@ -126,7 +137,7 @@ class TableService:
         if not allowed:
             return None, msg
 
-        allowed, msg = TableService._check_protection(table, provided_key)
+        allowed, msg = TableService._check_protection(table, provided_key=provided_key, user_id=user_id)
         if not allowed:
             return None, msg
 
@@ -142,18 +153,14 @@ class TableService:
         if 'is_protected' in data:
             table.is_protected = bool(data['is_protected'])
         if 'file_identifier' in data:
-            # Permet modifier l'identifiant du fichier
             table.file_identifier = data['file_identifier'] or None
-        # Alias protected file_identifier from XML spec
         if 'protected' in data:
             table.is_protected = str(data['protected']).lower() in ('true','1','yes')
         if 'archived' in data:
-            # archived bool -> status
             table.status = "ARCHIVED" if str(data['archived']).lower() in ('true','1','yes') else "ACTIVE"
         if 'comment' in data:
             table.comment = data['comment']
         if 'status' in data:
-            # Respect spec ACTIVE/ARCHIVED
             if data['status'] in ('ACTIVE','ARCHIVED'):
                 table.status = data['status']
 
@@ -209,7 +216,7 @@ class TableService:
         if not allowed:
             return False, msg
 
-        allowed, msg = TableService._check_protection(table, provided_key)
+        allowed, msg = TableService._check_protection(table, provided_key=provided_key, user_id=user_id)
         if not allowed:
             return False, msg
 
@@ -254,63 +261,12 @@ class TableService:
         return True, None
 
     @staticmethod
-    def update_comment(table_id, comment, user_id, user_name, ip_address=None, provided_key=None):
-        table = Table.query.get(table_id)
-        if not table:
-            return None, "Table introuvable"
-
-        allowed, msg = TableService._check_archived(table)
-        if not allowed:
-            return None, msg
-
-        allowed, msg = TableService._check_protection(table, provided_key)
-        if not allowed:
-            return None, msg
-
-        before = {"comment": table.comment}
-        table.comment = comment
-        table.last_modified_by_id = user_id
-        table.last_modified_by_name = user_name
-        table.updated_at = now_utc()
-        db.session.commit()
-        after = {"comment": comment}
-
-        HistoryService.log(
-            user_id=user_id,
-            user_name=user_name,
-            action_type="a commenté",
-            element_type="table",
-            element_name=table.name,
-            description=comment,
-            database_id=table.database_id,
-            table_id=table.id,
-            ip_address=ip_address,
-            before=before,
-            after=after
-        )
-
-        AuditService.log(
-            user_id=user_id,
-            user_name=user_name,
-            ip_address=ip_address,
-            action="COMMENTAIRE_TABLE",
-            element_type="table",
-            element_name=table.name,
-            description=comment,
-            meta={"table_id": table_id}
-        )
-
-        emit_modification("table", table.to_dict(), user_name)
-
-        return table, None
-
-    @staticmethod
     def archive(table_id, user_id, user_name, ip_address=None, provided_key=None):
         table = Table.query.get(table_id)
         if not table:
             return None, "Table introuvable"
 
-        allowed, msg = TableService._check_protection(table, provided_key)
+        allowed, msg = TableService._check_protection(table, provided_key=provided_key, user_id=user_id)
         if not allowed:
             return None, msg
 
@@ -359,7 +315,7 @@ class TableService:
         if not table:
             return None, "Table introuvable"
 
-        allowed, msg = TableService._check_protection(table, provided_key)
+        allowed, msg = TableService._check_protection(table, provided_key=provided_key, user_id=user_id)
         if not allowed:
             return None, msg
 
@@ -403,24 +359,27 @@ class TableService:
         return table, None
 
     @staticmethod
-    def unlock(table_id, key_identifier):
+    def unlock(table_id, key_identifier, user_id=None):
+        # V4: unlock personnel
+        from .unlock_service import UnlockService
         table = Table.query.get(table_id)
         if not table:
             return False, "Table introuvable"
         if not table.is_protected:
             return True, "Table non protégée, accès autorisé"
 
-        database = Database.query.get(table.database_id)
-        if not database:
-            return False, "Base introuvable"
+        if not user_id:
+            # Si pas de user_id, comportement legacy: check clé directement
+            database = Database.query.get(table.database_id)
+            valid_keys = []
+            if table.file_identifier:
+                valid_keys.append(table.file_identifier)
+            if database and database.key_identifier:
+                valid_keys.append(database.key_identifier)
+            if key_identifier in valid_keys:
+                return True, "Clé valide, accès autorisé"
+            else:
+                return False, "Clé invalide – vérifiez file_identifier ou clé base"
 
-        valid_keys = []
-        if table.file_identifier:
-            valid_keys.append(table.file_identifier)
-        if database.key_identifier:
-            valid_keys.append(database.key_identifier)
-
-        if key_identifier in valid_keys:
-            return True, "Clé valide, accès autorisé"
-        else:
-            return False, "Clé invalide – vérifiez file_identifier ou clé base"
+        ok, msg = UnlockService.unlock_table(user_id, table_id, key_identifier)
+        return ok, msg

@@ -1,35 +1,35 @@
 import { createContext, useContext, useState, useCallback } from 'react'
-import './Toast.css'
 
 const ToastContext = createContext(null)
 
 const icons = {
-  success: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>,
-  error: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>,
-  info: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>,
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+  info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>',
 }
 
-export function ToastProvider({ children }){
+export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([])
 
-  const notify = useCallback((type='info', title='', message='')=>{
+  const notify = useCallback((type, title, msg) => {
     const id = Date.now() + Math.random()
-    setToasts(s=>[...s, { id, type, title, message }])
-    setTimeout(()=> setToasts(s=> s.filter(t=>t.id!==id)), 3400)
-  },[])
-
-  const remove = useCallback((id)=>{
-    setToasts(s=> s.filter(t=>t.id!==id))
-  },[])
+    setToasts(t => [...t, { id, type, title, msg, out: false }])
+    setTimeout(() => {
+      setToasts(t => t.map(x => x.id === id ? { ...x, out: true } : x))
+      setTimeout(() => {
+        setToasts(t => t.filter(x => x.id !== id))
+      }, 260)
+    }, 3400)
+  }, [])
 
   return (
     <ToastContext.Provider value={{ notify }}>
       {children}
-      <div className="toast-stack">
-        {toasts.map(t=>(
-          <div key={t.id} className={`toast ${t.type}`} onClick={()=>remove(t.id)}>
-            <div className="ic">{icons[t.type]}</div>
-            <div className="txt"><b>{t.title}</b><span>{t.message}</span></div>
+      <div className="toast-stack" id="toast-stack">
+        {toasts.map(toast => (
+          <div key={toast.id} className={`toast ${toast.type} ${toast.out ? 'out' : ''}`}>
+            <div className="ic" dangerouslySetInnerHTML={{ __html: icons[toast.type] || icons.info }} />
+            <div className="txt"><b>{toast.title}</b><span>{toast.msg}</span></div>
           </div>
         ))}
       </div>
@@ -37,8 +37,8 @@ export function ToastProvider({ children }){
   )
 }
 
-export function useToast(){
+export function useToast() {
   const ctx = useContext(ToastContext)
-  if(!ctx) throw new Error('useToast must be inside ToastProvider')
+  if (!ctx) throw new Error('useToast must be used within ToastProvider')
   return ctx
 }

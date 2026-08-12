@@ -2,17 +2,17 @@ import { createContext, useContext, useEffect, useState, useCallback, useMemo } 
 import { authService } from '../services/authService'
 import { socketService } from '../services/socketService'
 
-// Liste temporaire des emails admin - facile à remplacer par un vrai système de rôles plus tard
-const ADMIN_EMAILS = ['nyx@xmlforge.io']
+const ADMIN_EMAIL = 'nyx@xmlforge.io'
 
 function extractRoles(user){
-  // Préparation future : si user.roles existe (array), on l'utilise, sinon on déduit du email
   if(!user) return []
   if(Array.isArray(user.roles) && user.roles.length){
     return user.roles
   }
-  // Fallback temporaire : email admin
-  if(ADMIN_EMAILS.includes(user.email?.toLowerCase())){
+  if(user.email?.toLowerCase() === ADMIN_EMAIL){
+    return ['ADMIN']
+  }
+  if(user.is_admin){
     return ['ADMIN']
   }
   return ['USER']
@@ -27,8 +27,11 @@ export function AuthProvider({ children }){
   const [loading, setLoading] = useState(true)
 
   const roles = useMemo(()=> extractRoles(user), [user])
-  const isAdmin = useMemo(()=> roles.includes('ADMIN'), [roles])
-  const isPrivileged = useMemo(()=> isAdmin, [isAdmin]) // alias pour historique/audit
+  const isAdmin = useMemo(()=> {
+    if(!user) return false
+    return user.email?.toLowerCase() === ADMIN_EMAIL || user.is_admin === true || roles.includes('ADMIN')
+  }, [user, roles])
+  const isPrivileged = useMemo(()=> isAdmin, [isAdmin])
 
   const checkAuth = useCallback(async ()=>{
     const token = localStorage.getItem('xmlforge_token')
@@ -45,6 +48,8 @@ export function AuthProvider({ children }){
       localStorage.removeItem('xmlforge_token')
       localStorage.removeItem('xmlforge_user')
       sessionStorage.removeItem('xmlforge_db_key')
+      sessionStorage.removeItem('xmlforge_unlocks')
+      // Clear personal unlocks backend via API? logout will do, but here just clear local
       setUser(null)
       socketService.disconnect()
     }finally{
@@ -67,12 +72,19 @@ export function AuthProvider({ children }){
   }
 
   const logout = async ()=>{
-    await authService.logout()
+    try{
+      await authService.logout()
+    }catch{}
+    // V4: clear personal unlocks
+    try{
+      sessionStorage.removeItem('xmlforge_unlocks')
+      sessionStorage.removeItem('xmlforge_db_key')
+      localStorage.removeItem('xmlforge_unlocks')
+    }catch{}
     setUser(null)
     socketService.disconnect()
   }
 
-  // Helper pour vérifier permission future
   const hasRole = useCallback((role)=>{
     return roles.includes(role)
   },[roles])

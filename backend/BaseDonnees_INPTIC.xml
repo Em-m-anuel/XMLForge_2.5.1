@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<database
+    name="INPTIC_Partenariats"
+    description="Base de données des partenariats officiels de l'INPTIC">
+
+    <!-- ============================= -->
+    <!-- TABLE PARTENAIRES -->
+    <!-- ============================= -->
+
+    <table
+        name="partenaires"
+        description="Partenaires officiels">
+
+        <columns>
+
+            <column
+                name="id"
+                type="INT"
+                primary_key="true"
+                auto_increment="true"
+                nullable="false"/>
+
+            <column
+                name="nom"
+                type="VARCHAR"
+                length="200"
+                nullable="false"/>
+
+            <column
+                name="type"
+                type="VARCHAR"
+                length="100"/>
+
+            <column
+                name="statut"
+                type="VARCHAR"
+                length="30"/>
+
+            <column
+                name="date_signature"
+                type="DATE"/>
+
+            <column
+                name="description"
+                type="TEXT"/>
+
+        </columns>
+
+        <rows>
+
+            <row>
+                <cell column="id">1</cell>
+                <cell column="nom">ARCEP Gabon</cell>
+                <cell column="type">Institution</cell>
+                <cell column="statut">Actif</cell>
+                <cell column="date_signature"></cell>
+                <cell column="description">Partenaire officiel de l'INPTIC.</cell>
+            </row>
+
+            <row>
+                <cell column="id">2</cell>
+                <cell column="nom">La Poste SA</cell>
+                <cell column="type">Institution</cell>
+                <cell column="statut">Actif</cell>
+                <cell column="date_signature"></cell>
+                <cell column="description">Partenaire officiel de l'INPTIC.</cell>
+            </row>
+
+            <row>
+                <cell column="id">3</cell>
+                <cell column="nom">Gabon Telecom</cell>
+                <cell column="type">Institution</cell>
+                <cell column="statut">Actif</cell>
+                <cell column="date_signature"></cell>
+                <cell column="description">Partenaire officiel de l'INPTIC.</cell>
+            </row>
+
+            <row>
+                <cell column="id">4</cell>
+                <cell column="nom">Moov Africa Gabon Telecom</cell>
+                <cell column="type">Institution</cell>
+                <cell column="statut">Actif</cell>
+                <cell column="date_signature"></cell>
+                <cell column="description">Partenaire officiel de l'INPTIC.</cell>
+            </row>
+
+            <row>
+                <cell column="id">5</cell>
+                <cell column="nom">Airtel Gabon</cell>
+                <cell column="type">Institution</cell>
+                <cell column="statut">Actif</cell>
+                <cell column="date_signature"></cell>
+                <cell column="description">Partenaire officiel de l'INPTIC.</cell>
+            </row>
+
+            <row>
+                <cell column="id">6</cell>
+                <cell column="nom">ANINF</cell>
+                <cell column="type">Institution</cell>
+                <cell column="statut">Actif</cell>
+                <cell column="date_signature"></cell>
+                <cell column="description">Partenaire officiel de l'INPTIC.</cell>
+            </row>
+
+            <row>
+                <cell column="id">7</cell>
+                <cell column="nom">Ministère de l'Économie Numérique</cell>
+                <cell column="type">Institution</cell>
+                <cell column="statut">Actif</cell>
+                <cell column="date_signature"></cell>
+                <cell column="description">Partenaire officiel de l'INPTIC.</cell>
+            </row>
+
+            <row>
+                <cell column="id">8</cell>
+                <cell column="nom">Université Omar Bongo</cell>
+                <cell column="type">Institution</cell>
+                <cell column="statut">Actif</cell>
+                <cell column="date_signature"></cell>
+                <cell column="description">Partenaire officiel de l'INPTIC.</cell>
+            </row>
+
+        </rows>
+
+    </table>
+
+</database>

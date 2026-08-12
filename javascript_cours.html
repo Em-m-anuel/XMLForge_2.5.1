@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Parser du XML en JavaScript</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 40px;
+        background-color: #f4f4f9;
+      }
+      .container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        color: #333;
+      }
+      .resultat {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #eef9ff;
+        border-left: 5px solid #0076ff;
+        font-size: 1.1em;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Exemple de Parsing XML</h1>
+      <p>
+        Le JavaScript ci-dessous parse une chaîne XML et extrait les données :
+      </p>
+
+      <!-- Zone où le résultat sera affiché -->
+      <div id="affichage" class="resultat">Chargement des données...</div>
+    </div>
+
+    <script>
+      // 1. Votre chaîne de caractères XML
+      const xmlString = `
+        <bibliotheque>
+            <livre id="1">
+                <titre>Le Petit Prince</titre>
+                <auteur>Antoine de Saint-Exupéry</auteur>
+            </livre>
+        </bibliotheque>
+        `;
+
+      // 2. Initialiser le parser
+      const parser = new DOMParser();
+
+      // 3. Parser la chaîne (indiquer le type "text/xml")
+      const xmlDoc = parser.parseFromString(xmlString, "text/xml");
+
+      // 4. Vérifier s'il y a une erreur de parsing
+      const errorNode = xmlDoc.querySelector("parsererror");
+
+      if (errorNode) {
+        document.getElementById("affichage").textContent =
+          "Erreur : Le XML est mal formé.";
+        document.getElementById("affichage").style.borderColor = "red";
+        document.getElementById("affichage").style.backgroundColor = "#fff0f0";
+      } else {
+        // 5. Extraire les données si tout est correct
+        const titre = xmlDoc.getElementsByTagName("titre")[0].textContent;
+        const auteur = xmlDoc.querySelector("auteur").textContent;
+        const idLivre = xmlDoc
+          .getElementsByTagName("livre")[0]
+          .getAttribute("id");
+
+        // 6. Afficher le résultat dans la page HTML
+        document.getElementById("affichage").innerHTML = `
+                <strong>Livre trouvé :</strong> ${titre} <br>
+                <strong>Auteur :</strong> ${auteur} <br>
+                <strong>ID du livre :</strong> ${idLivre}
+            `;
+      }
+    </script>
+  </body>
+</html>

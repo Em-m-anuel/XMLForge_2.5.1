@@ -1,5 +1,5 @@
 """
-Service Column V2 - métadonnées, état, commentaires, audit, websocket
+Service Column V4 - avec protection personnelle
 """
 import uuid as uuid_lib
 from ..extensions import db
@@ -35,7 +35,7 @@ class ColumnService:
         if table.is_archived():
             return None, f"Table '{table.name}' archivée, création colonne impossible."
 
-        allowed, msg = TableService._check_protection(table, provided_key)
+        allowed, msg = TableService._check_protection(table, provided_key=provided_key, user_id=creator_id)
         if not allowed:
             return None, msg
 
@@ -122,7 +122,7 @@ class ColumnService:
         if table.is_archived():
             return None, f"Table '{table.name}' archivée, modification colonne impossible."
 
-        allowed, msg = TableService._check_protection(table, provided_key)
+        allowed, msg = TableService._check_protection(table, provided_key=provided_key, user_id=user_id)
         if not allowed:
             return None, msg
 
@@ -209,7 +209,7 @@ class ColumnService:
         if table.is_archived():
             return False, f"Table '{table.name}' archivée, suppression colonne impossible."
 
-        allowed, msg = TableService._check_protection(table, provided_key)
+        allowed, msg = TableService._check_protection(table, provided_key=provided_key, user_id=user_id)
         if not allowed:
             return False, msg
 
@@ -257,154 +257,3 @@ class ColumnService:
         db.session.commit()
 
         return True, None
-
-    @staticmethod
-    def update_comment(col_id, comment, user_id, user_name, ip_address=None, provided_key=None):
-        column = Column.query.get(col_id)
-        if not column:
-            return None, "Colonne introuvable"
-
-        if column.is_archived():
-            return None, f"Colonne '{column.name}' archivée, modification commentaire impossible."
-
-        table = Table.query.get(column.table_id)
-        allowed, msg = TableService._check_protection(table, provided_key)
-        if not allowed:
-            return None, msg
-
-        before = {"comment": column.comment}
-        column.comment = comment
-        column.last_modified_by_id = user_id
-        column.last_modified_by_name = user_name
-        column.updated_at = now_utc()
-        db.session.commit()
-        after = {"comment": comment}
-
-        HistoryService.log(
-            user_id=user_id,
-            user_name=user_name,
-            action_type="a commenté",
-            element_type="colonne",
-            element_name=column.name,
-            description=comment,
-            database_id=table.database_id,
-            table_id=table.id,
-            ip_address=ip_address,
-            before=before,
-            after=after
-        )
-
-        AuditService.log(
-            user_id=user_id,
-            user_name=user_name,
-            ip_address=ip_address,
-            action="COMMENTAIRE_COLONNE",
-            element_type="colonne",
-            element_name=column.name,
-            description=comment,
-            meta={"column_id": col_id}
-        )
-
-        emit_modification("colonne", column.to_dict(), user_name)
-
-        return column, None
-
-    @staticmethod
-    def archive(col_id, user_id, user_name, ip_address=None, provided_key=None):
-        column = Column.query.get(col_id)
-        if not column:
-            return None, "Colonne introuvable"
-
-        table = Table.query.get(column.table_id)
-        allowed, msg = TableService._check_protection(table, provided_key)
-        if not allowed:
-            return None, msg
-
-        if column.is_archived():
-            return None, "Colonne déjà archivée"
-
-        before = {"status": column.status}
-        column.status = "ARCHIVED"
-        column.last_modified_by_id = user_id
-        column.last_modified_by_name = user_name
-        column.updated_at = now_utc()
-        db.session.commit()
-        after = {"status": "ARCHIVED"}
-
-        HistoryService.log(
-            user_id=user_id,
-            user_name=user_name,
-            action_type="a archivé",
-            element_type="colonne",
-            element_name=column.name,
-            description=f"Colonne {column.name} archivée",
-            database_id=table.database_id,
-            table_id=table.id,
-            ip_address=ip_address,
-            before=before,
-            after=after
-        )
-
-        AuditService.log(
-            user_id=user_id,
-            user_name=user_name,
-            ip_address=ip_address,
-            action="ARCHIVAGE_COLONNE",
-            element_type="colonne",
-            element_name=column.name,
-            meta={"column_id": col_id}
-        )
-
-        emit_modification("colonne", column.to_dict(), user_name)
-
-        return column, None
-
-    @staticmethod
-    def restore(col_id, user_id, user_name, ip_address=None, provided_key=None):
-        column = Column.query.get(col_id)
-        if not column:
-            return None, "Colonne introuvable"
-
-        table = Table.query.get(column.table_id)
-        allowed, msg = TableService._check_protection(table, provided_key)
-        if not allowed:
-            return None, msg
-
-        if not column.is_archived():
-            return None, "Colonne non archivée"
-
-        before = {"status": column.status}
-        column.status = "ACTIVE"
-        column.last_modified_by_id = user_id
-        column.last_modified_by_name = user_name
-        column.updated_at = now_utc()
-        db.session.commit()
-        after = {"status": "ACTIVE"}
-
-        HistoryService.log(
-            user_id=user_id,
-            user_name=user_name,
-            action_type="a restauré",
-            element_type="colonne",
-            element_name=column.name,
-            description=f"Colonne {column.name} restaurée",
-            database_id=table.database_id,
-            table_id=table.id,
-            ip_address=ip_address,
-            before=before,
-            after=after
-        )
-
-        AuditService.log(
-            user_id=user_id,
-            user_name=user_name,
-            ip_address=ip_address,
-            action="RESTAURATION_COLONNE",
-            element_type="colonne",
-            element_name=column.name,
-            meta={"column_id": col_id}
-        )
-
-        emit_modification("colonne", column.to_dict(), user_name)
-
-        return column, None

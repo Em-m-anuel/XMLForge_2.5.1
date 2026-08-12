@@ -1,5 +1,5 @@
 """
-Route Unlock Table V2 avec IP + audit
+Route Unlock Table V4 - déverrouillage personnel par utilisateur/session
 """
 from flask import Blueprint, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -8,6 +8,7 @@ from ..utils.responses import success_response, error_response
 from ..services.table_service import TableService
 from ..services.auth_service import AuthService
 from ..services.audit_service import AuditService
+from ..services.unlock_service import UnlockService
 from marshmallow import ValidationError
 
 unlock_bp = Blueprint('unlock', __name__)
@@ -29,7 +30,8 @@ def unlock_table():
         schema = UnlockTableSchema()
         validated = schema.load(json_data)
 
-        ok, msg = TableService.unlock(validated['table_id'], validated['key_identifier'])
+        # V4: unlock personnel
+        ok, msg = TableService.unlock(validated['table_id'], validated['key_identifier'], user_id=user_id)
         if not ok:
             AuditService.log(
                 user_id=user.id,
@@ -49,13 +51,34 @@ def unlock_table():
             action="DEVERROUILLAGE_TABLE",
             element_type="table",
             element_name=str(validated['table_id']),
-            description=f"Table {validated['table_id']} déverrouillée",
-            meta={"table_id": validated['table_id']}
+            description=f"Table {validated['table_id']} déverrouillée pour user {user.email}",
+            meta={"table_id": validated['table_id'], "user_id": user_id}
         )
 
-        return success_response({"unlocked": True, "table_id": validated['table_id']}, msg)
+        return success_response({"unlocked": True, "table_id": validated['table_id'], "personal": True}, msg)
 
     except ValidationError as ve:
         return error_response("Validation échouée", 400, ve.messages)
+    except Exception as e:
+        return error_response(str(e), 500)
+
+@unlock_bp.route('/unlocks', methods=['GET'])
+@jwt_required()
+def list_unlocks():
+    try:
+        user_id = int(get_jwt_identity())
+        unlocks = UnlockService.list_user_unlocks(user_id)
+        data = [u.to_dict() for u in unlocks]
+        return success_response(data, f"{len(data)} tables déverrouillées pour votre session")
+    except Exception as e:
+        return error_response(str(e), 500)
+
+@unlock_bp.route('/unlocks', methods=['DELETE'])
+@jwt_required()
+def clear_unlocks():
+    try:
+        user_id = int(get_jwt_identity())
+        UnlockService.clear_user_unlocks(user_id)
+        return success_response(None, "Tous les déverrouillages effacés pour votre session")
     except Exception as e:
         return error_response(str(e), 500)

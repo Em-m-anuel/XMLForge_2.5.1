@@ -305,3 +305,20 @@ class DatabaseService:
         emit_modification("base", database.to_dict(), user_name)
 
         return database, None
+
+    @staticmethod
+    def get_database_by_name(user_id, database_name):
+        """Récupère une base de données par nom pour un utilisateur"""
+        return Database.query.filter_by(
+            name=database_name,
+            creator_id=user_id,
+            status="ACTIVE"
+        ).first()
+    
+    @staticmethod
+    def get_database_by_name_any_user(database_name):
+        """Récupère une base de données par nom (sans filtre user_id) - pour admin"""
+        return Database.query.filter_by(
+            name=database_name,
+            status="ACTIVE"
+        ).first()
