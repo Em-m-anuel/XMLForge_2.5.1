@@ -11,8 +11,8 @@ export const userService = {
     return res.data
   },
 
-  create: async ({ full_name, email, password, is_active = true }) => {
-    const res = await apiClient.post('/users', { full_name, email, password, is_active })
+  create: async ({ full_name, email, password, is_active = true, role = 'user' }) => {
+    const res = await apiClient.post('/users', { full_name, email, password, is_active, role })
     return res.data
   },
 

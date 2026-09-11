@@ -1,119 +1,90 @@
-import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
 import { authService } from '../services/authService'
+import apiClient from '../services/api'
 import { socketService } from '../services/socketService'
 
-const ADMIN_EMAIL = 'nyx@xmlforge.io'
-
-function extractRoles(user){
-  if(!user) return []
-  if(Array.isArray(user.roles) && user.roles.length){
-    return user.roles
-  }
-  if(user.email?.toLowerCase() === ADMIN_EMAIL){
-    return ['ADMIN']
-  }
-  if(user.is_admin){
-    return ['ADMIN']
-  }
+function extractRoles(user) {
+  if (!user) return []
+  if (Array.isArray(user.roles) && user.roles.length) return user.roles.map(role => String(role).toUpperCase())
+  if (user.role) return [String(user.role).toUpperCase()]
+  if (user.is_admin === true) return ['ADMIN']
   return ['USER']
 }
 
 const AuthContext = createContext(null)
 
-export function AuthProvider({ children }){
-  const [user, setUser] = useState(()=>{
-    try { return JSON.parse(localStorage.getItem('xmlforge_user') || 'null') } catch { return null }
-  })
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(() => authService.getStoredUser())
   const [loading, setLoading] = useState(true)
 
-  const roles = useMemo(()=> extractRoles(user), [user])
-  const isAdmin = useMemo(()=> {
-    if(!user) return false
-    return user.email?.toLowerCase() === ADMIN_EMAIL || user.is_admin === true || roles.includes('ADMIN')
-  }, [user, roles])
-  const isPrivileged = useMemo(()=> isAdmin, [isAdmin])
+  const roles = useMemo(() => extractRoles(user), [user])
+  const isAdmin = roles.includes('ADMIN')
 
-  const checkAuth = useCallback(async ()=>{
-    const token = localStorage.getItem('xmlforge_token')
-    if(!token){
+  const clearLocalAuth = useCallback(() => {
+    setUser(null)
+    socketService.disconnect()
+    window.dispatchEvent(new CustomEvent('xmlforge:session-changed', { detail: { authenticated: false } }))
+  }, [])
+
+  const checkAuth = useCallback(async () => {
+    const token = apiClient.getToken()
+    if (!token || apiClient.isTokenExpired(token)) {
+      if (token) apiClient.clearSession('expired')
+      clearLocalAuth()
       setLoading(false)
       return
     }
-    try{
-      const res = await authService.me()
-      setUser(res)
-      localStorage.setItem('xmlforge_user', JSON.stringify(res))
+    try {
+      const currentUser = await authService.me()
+      setUser(currentUser)
+      localStorage.setItem('xmlforge_user', JSON.stringify(currentUser))
       socketService.connect()
-    }catch{
-      localStorage.removeItem('xmlforge_token')
-      localStorage.removeItem('xmlforge_user')
-      sessionStorage.removeItem('xmlforge_db_key')
-      sessionStorage.removeItem('xmlforge_unlocks')
-      // Clear personal unlocks backend via API? logout will do, but here just clear local
-      setUser(null)
-      socketService.disconnect()
-    }finally{
+    } catch {
+      clearLocalAuth()
+    } finally {
       setLoading(false)
     }
-  },[])
+  }, [clearLocalAuth])
 
-  useEffect(()=>{ checkAuth() },[checkAuth])
+  useEffect(() => { checkAuth() }, [checkAuth])
 
-  const login = async (payload)=>{
+  useEffect(() => {
+    const unauthorized = () => clearLocalAuth()
+    window.addEventListener('xmlforge:unauthorized', unauthorized)
+    return () => window.removeEventListener('xmlforge:unauthorized', unauthorized)
+  }, [clearLocalAuth])
+
+  const login = async (payload) => {
     const data = await authService.login(payload)
     setUser(data.user)
+    window.dispatchEvent(new CustomEvent('xmlforge:session-changed', { detail: { authenticated: true } }))
     socketService.connect()
     return data
   }
 
-  const register = async (payload)=>{
-    const data = await authService.register(payload)
-    return data
+  const register = (payload) => authService.register(payload)
+
+  const logout = async () => {
+    await authService.logout()
+    clearLocalAuth()
   }
 
-  const logout = async ()=>{
-    try{
-      await authService.logout()
-    }catch{}
-    // V4: clear personal unlocks
-    try{
-      sessionStorage.removeItem('xmlforge_unlocks')
-      sessionStorage.removeItem('xmlforge_db_key')
-      localStorage.removeItem('xmlforge_unlocks')
-    }catch{}
-    setUser(null)
-    socketService.disconnect()
-  }
-
-  const hasRole = useCallback((role)=>{
-    return roles.includes(role)
-  },[roles])
-
-  const hasAnyRole = useCallback((wantedRoles=[])=>{
-    return wantedRoles.some(r=> roles.includes(r))
-  },[roles])
+  const hasRole = useCallback((role) => roles.includes(String(role).toUpperCase()), [roles])
+  const hasAnyRole = useCallback((wanted = []) => wanted.some(role => roles.includes(String(role).toUpperCase())), [roles])
 
   return (
     <AuthContext.Provider value={{
-      user,
-      roles,
-      isAdmin,
-      isPrivileged,
-      hasRole,
-      hasAnyRole,
-      loading,
-      login,
-      register,
-      logout,
-      isAuthenticated: !!user
+      user, roles, isAdmin, isPrivileged: isAdmin, hasRole, hasAnyRole,
+      loading, login, register, logout, refreshUser: checkAuth,
+      isAuthenticated: Boolean(user),
     }}>
       {children}
     </AuthContext.Provider>
   )
 }
 
-export function useAuth(){
-  const ctx = useContext(AuthContext)
-  if(!ctx) throw new Error('useAuth must be inside AuthProvider')
-  return ctx
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (!context) throw new Error('useAuth must be inside AuthProvider')
+  return context
 }

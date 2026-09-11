@@ -22,7 +22,7 @@ export function AdminRoute({ children }) {
         <div style={{ fontSize: '48px' }}>🔒</div>
         <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text)' }}>Accès refusé</div>
         <div style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '320px', textAlign: 'center' }}>
-          Cette page est réservée à l'administrateur <b>nyx@xmlforge.io</b>. Vous n'avez pas les privilèges requis.
+          Cette page nécessite le rôle <b>ADMIN</b> attribué par le backend. Vous n'avez pas les privilèges requis.
         </div>
         <button className="btn btn-primary" onClick={() => window.location.href = '/dashboard'}>Retour Dashboard</button>
       </div>

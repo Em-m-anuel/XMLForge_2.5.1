@@ -1,42 +1,23 @@
 import apiClient from './api'
 
+const versioned = (payload = {}, expectedVersion) => expectedVersion == null ? payload : { ...payload, expected_version: expectedVersion }
+
 export const columnService = {
-  list: async (tableId, includeArchived = true) => {
-    const res = await apiClient.get(`/columns/${tableId}?include_archived=${includeArchived}`)
-    return res.data
-  },
-
-  create: async (payload, key) => {
-    const body = { ...payload }
-    if (key) body.key_identifier = key
-    const res = await apiClient.post('/columns', body)
-    return res.data
-  },
-
-  update: async (id, payload, key) => {
-    const body = { ...payload }
-    if (key) body.key_identifier = key
-    const res = await apiClient.put(`/columns/${id}`, body)
-    return res.data
-  },
-
-  delete: async (id, key) => {
-    const headers = {}
-    if (key) headers['X-Database-Key'] = key
-    const query = key ? `?key=${encodeURIComponent(key)}` : ''
-    const res = await apiClient.delete(`/columns/${id}${query}`, { ...headers })
-    return res.data
-  },
-
-  archive: async (id, key) => {
-    const body = key ? { key_identifier: key } : {}
-    const res = await apiClient.post(`/columns/${id}/archive`, body)
-    return res.data
-  },
-
-  restore: async (id, key) => {
-    const body = key ? { key_identifier: key } : {}
-    const res = await apiClient.post(`/columns/${id}/restore`, body)
-    return res.data
-  },
+  list: async (tableId, includeArchived = true) => (
+    await apiClient.get(`/columns/${tableId}?include_archived=${includeArchived}`)
+  ).data,
+  get: async (columnId) => (await apiClient.get(`/columns/${columnId}/detail`)).data,
+  create: async (payload, expectedVersion) => (
+    await apiClient.post('/columns', versioned(payload, expectedVersion))
+  ).data,
+  update: async (id, payload, expectedVersion) => (
+    await apiClient.put(`/columns/${id}`, versioned(payload, expectedVersion))
+  ).data,
+  delete: async (id, expectedVersion) => (
+    await apiClient.delete(`/columns/${id}`, {
+      headers: expectedVersion == null ? {} : { 'If-Match': String(expectedVersion) },
+    })
+  ).data,
+  archive: async (id) => (await apiClient.post(`/columns/${id}/archive`, {})).data,
+  restore: async (id) => (await apiClient.post(`/columns/${id}/restore`, {})).data,
 }

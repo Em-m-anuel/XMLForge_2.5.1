@@ -14,6 +14,7 @@ export function Register() {
   const [showPwd, setShowPwd] = useState(false)
   const [showPwd2, setShowPwd2] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -25,12 +26,14 @@ export function Register() {
       notify('error', 'Mots de passe différents', 'Veuillez vérifier la confirmation')
       return
     }
+    setError('')
     setLoading(true)
     try {
       await register({ full_name: fullName.trim(), email: email.trim(), password })
       notify('success', 'Compte créé', 'Vous pouvez maintenant vous connecter')
       navigate('/login')
     } catch (err) {
+      setError(err.message)
       notify('error', 'Échec inscription', err.message)
     } finally {
       setLoading(false)
@@ -80,7 +83,7 @@ export function Register() {
             <label htmlFor="reg-email">Adresse e-mail</label>
             <div className="field-input">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 6-10 7L2 6" /></svg>
-              <input id="reg-email" type="text" placeholder="ex. nyx@xmlforge.dev" value={email} onChange={e => setEmail(e.target.value)} />
+              <input id="reg-email" type="text" placeholder="ex. user@example.com" value={email} onChange={e => setEmail(e.target.value)} />
             </div>
           </div>
           <div className="grid-2">
@@ -113,6 +116,7 @@ export function Register() {
               </div>
             </div>
           </div>
+          {error && <div className="login-error"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span>{error}</span></div>}
           <button className="btn btn-primary login-btn" type="submit" disabled={loading}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M19 8v6M22 11h-6" /></svg>
             {loading ? 'Création...' : 'Créer mon compte'}

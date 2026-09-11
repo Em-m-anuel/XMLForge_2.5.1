@@ -3,6 +3,7 @@
  * Ne modifie pas l'API REST, ajoute uniquement SocketIO
  */
 import { io } from 'socket.io-client'
+import { getSocketUrl } from './api'
 
 class SocketService {
   constructor() {
@@ -11,12 +12,17 @@ class SocketService {
   }
 
   connect(url) {
-    const baseUrl = url || import.meta.env.VITE_API_URL || 'http://localhost:5000'
-    if (this.socket?.connected) return this.socket
+    if (import.meta.env.VITE_ENABLE_SOCKET_IO !== 'true') return null
+    const baseUrl = url || getSocketUrl()
+    if (this.socket) return this.socket
 
     this.socket = io(baseUrl, {
-      transports: ['websocket', 'polling'],
+      // Le backend Flask-SocketIO actuel fonctionne de manière portable en
+      // polling/threading. Ne pas forcer un upgrade WebSocket non configuré.
+      transports: ['polling'],
       autoConnect: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5,
     })
 
     this.socket.on('connect', () => {

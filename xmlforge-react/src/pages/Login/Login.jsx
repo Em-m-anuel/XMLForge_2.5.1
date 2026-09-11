@@ -11,6 +11,7 @@ export function Login() {
   const [password, setPassword] = useState('')
   const [showPwd, setShowPwd] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -18,13 +19,16 @@ export function Login() {
       notify('error', 'Champs requis', 'Veuillez remplir email et mot de passe')
       return
     }
+    setError('')
     setLoading(true)
     try {
       await login({ email: email.trim(), password })
       notify('success', 'Connexion réussie', 'Bienvenue sur XMLForge')
       navigate('/dashboard')
     } catch (err) {
-      notify('error', 'Échec de connexion', err.message || 'Email ou mot de passe incorrect')
+      const message = err.message || 'Email ou mot de passe incorrect'
+      setError(message)
+      notify('error', 'Échec de connexion', message)
     } finally {
       setLoading(false)
     }
@@ -67,7 +71,7 @@ export function Login() {
               <label htmlFor="login-user">Adresse e-mail</label>
               <div className="field-input">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 6-10 7L2 6" /></svg>
-                <input id="login-user" type="text" placeholder="ex. nyx@xmlforge.dev" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} />
+                <input id="login-user" type="text" placeholder="ex. user@example.com" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} />
               </div>
             </div>
             <div className="field">
@@ -84,6 +88,7 @@ export function Login() {
                 </button>
               </div>
             </div>
+            {error && <div className="login-error"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span>{error}</span></div>}
             <button className="btn btn-primary login-btn" type="submit" disabled={loading}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><path d="M10 17l5-5-5-5" /><path d="M15 12H3" /></svg>
               {loading ? 'Connexion...' : 'Connexion'}

@@ -13,6 +13,7 @@ const Workspace = lazy(() => import('./pages/Workspace/Workspace').then(m => ({ 
 const HistoryPage = lazy(() => import('./pages/History/History').then(m => ({ default: m.HistoryPage })))
 const AuditPage = lazy(() => import('./pages/Audit/Audit').then(m => ({ default: m.AuditPage })))
 const UsersPage = lazy(() => import('./pages/Users/Users').then(m => ({ default: m.UsersPage })))
+const SettingsPage = lazy(() => import('./pages/Settings/Settings').then(m => ({ default: m.SettingsPage })))
 
 function AppFallback() {
   return (
@@ -38,6 +39,8 @@ function App() {
               <Route path="/history" element={<ProtectedRoute><AdminRoute><HistoryPage /></AdminRoute></ProtectedRoute>} />
               <Route path="/audit" element={<ProtectedRoute><AdminRoute><AuditPage /></AdminRoute></ProtectedRoute>} />
               <Route path="/users" element={<ProtectedRoute><AdminRoute><UsersPage /></AdminRoute></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+              <Route path="/database/:databaseId" element={<ProtectedRoute><Workspace /></ProtectedRoute>} />
               <Route path="/" element={<Navigate to="/login" replace />} />
               <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>

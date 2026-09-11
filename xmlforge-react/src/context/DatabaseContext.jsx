@@ -1,71 +1,77 @@
-import { createContext, useContext, useState, useCallback } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import { useAuth } from './AuthContext'
+import { unlockService } from '../services/unlockService'
 
 const DatabaseContext = createContext(null)
 
-function loadUnlocks() {
+function readUnlockIds() {
   try {
-    const raw = sessionStorage.getItem('xmlforge_unlocks')
-    return raw ? JSON.parse(raw) : {}
+    return JSON.parse(sessionStorage.getItem('xmlforge_unlocks') || '[]').map(String)
   } catch {
-    return {}
+    return []
   }
 }
 
-export function DatabaseProvider({ children }){
+export function DatabaseProvider({ children }) {
+  const { isAuthenticated } = useAuth()
   const [currentDatabase, setCurrentDatabase] = useState(null)
-  const [dbKey, setDbKey] = useState(()=> sessionStorage.getItem('xmlforge_db_key') || null)
-  const [unlocks, setUnlocks] = useState(()=> loadUnlocks()) // {tableId: key}
+  const [unlockedTableIds, setUnlockedTableIds] = useState(readUnlockIds)
 
-  const saveKey = useCallback((key)=>{
-    if(key){
-      sessionStorage.setItem('xmlforge_db_key', key)
-      setDbKey(key)
+  const persist = useCallback((ids) => {
+    const unique = [...new Set(ids.map(String))]
+    sessionStorage.setItem('xmlforge_unlocks', JSON.stringify(unique))
+    setUnlockedTableIds(unique)
+  }, [])
+
+  const refreshUnlocks = useCallback(async () => {
+    if (!isAuthenticated) {
+      persist([])
+      return []
     }
-  },[])
+    try {
+      const unlocks = await unlockService.list()
+      const ids = (unlocks || []).filter(item => !item.is_expired).map(item => item.table_id)
+      persist(ids)
+      return ids
+    } catch {
+      persist([])
+      return []
+    }
+  }, [isAuthenticated, persist])
 
-  const clearKey = useCallback(()=>{
-    sessionStorage.removeItem('xmlforge_db_key')
-    setDbKey(null)
-  },[])
+  useEffect(() => { refreshUnlocks() }, [refreshUnlocks])
 
-  const saveUnlock = useCallback((tableId, key)=>{
-    setUnlocks(prev => {
-      const next = { ...prev, [String(tableId)]: key }
-      sessionStorage.setItem('xmlforge_unlocks', JSON.stringify(next))
-      return next
-    })
-    // Also keep legacy dbKey for backward compat
-    if(key) saveKey(key)
-  },[saveKey])
+  useEffect(() => {
+    const sessionChanged = () => refreshUnlocks()
+    window.addEventListener('xmlforge:session-changed', sessionChanged)
+    return () => window.removeEventListener('xmlforge:session-changed', sessionChanged)
+  }, [refreshUnlocks])
 
-  const getUnlock = useCallback((tableId)=>{
-    return unlocks[String(tableId)] || null
-  },[unlocks])
+  const markUnlocked = useCallback((tableId) => {
+    persist([...unlockedTableIds, String(tableId)])
+  }, [persist, unlockedTableIds])
 
-  const clearUnlocks = useCallback(()=>{
-    sessionStorage.removeItem('xmlforge_unlocks')
-    sessionStorage.removeItem('xmlforge_db_key')
-    setUnlocks({})
-    setDbKey(null)
-  },[])
+  const clearUnlocks = useCallback(async ({ backend = false } = {}) => {
+    if (backend && isAuthenticated) {
+      try { await unlockService.clear() } catch { /* session cleanup stays local */ }
+    }
+    persist([])
+  }, [isAuthenticated, persist])
 
-  const isUnlocked = useCallback((tableId)=>{
-    return !!unlocks[String(tableId)]
-  },[unlocks])
+  const isUnlocked = useCallback((tableId) => unlockedTableIds.includes(String(tableId)), [unlockedTableIds])
 
   return (
-    <DatabaseContext.Provider value={{ 
-      currentDatabase, setCurrentDatabase, 
-      dbKey, saveKey, clearKey,
-      unlocks, saveUnlock, getUnlock, clearUnlocks, isUnlocked
+    <DatabaseContext.Provider value={{
+      currentDatabase, setCurrentDatabase,
+      unlockedTableIds, markUnlocked, refreshUnlocks, clearUnlocks, isUnlocked,
     }}>
       {children}
     </DatabaseContext.Provider>
   )
 }
 
-export function useDatabaseContext(){
-  const ctx = useContext(DatabaseContext)
-  if(!ctx) throw new Error('useDatabaseContext must be inside DatabaseProvider')
-  return ctx
+export function useDatabaseContext() {
+  const context = useContext(DatabaseContext)
+  if (!context) throw new Error('useDatabaseContext must be inside DatabaseProvider')
+  return context
 }

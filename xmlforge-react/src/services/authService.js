@@ -29,7 +29,7 @@ export const authService = {
     } finally {
       localStorage.removeItem('xmlforge_token')
       localStorage.removeItem('xmlforge_user')
-      sessionStorage.removeItem('xmlforge_db_key')
+      sessionStorage.removeItem('xmlforge_unlocks')
     }
   },
 
