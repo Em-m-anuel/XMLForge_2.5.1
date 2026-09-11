@@ -1,0 +1,1952 @@
+<!DOCTYPE html>
+<!-- ============================================================
+  XMLForge — Modèle frontend autonome (HTML/CSS/JS)
+  ------------------------------------------------------------
+  Représente l'INTÉGRALITÉ du frontend fonctionnel de XMLForge :
+  - Login / Register
+  - Dashboard (bases PERSONAL / COMMON, partage, import/export)
+  - Workspace (structure, données, relations, XML, SQL, sync, protection)
+  - Utilisateurs (ADMIN), Historique (ADMIN), Audit (ADMIN)
+  - API & TCP/IP (statut serveur, credentials, endpoints)
+
+  Ce fichier est un MODÈLE VISUEL : il est volontairement lisible et
+  modifiable. Toutes les actions appellent les VRAIS endpoints du
+  backend Flask (aucune donnée fictive). Aucun mock n'est embarqué.
+
+  CONFIG : la constante API_URL ci-dessous pointe vers le backend.
+  En développement React, Vite proxyfie /api vers http://localhost:5000.
+  Fichier autonome => utiliser l'URL complète du backend.
+============================================================ -->
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>XMLForge — Frontend</title>
+<style>
+/* ============================================================
+   DESIGN TOKENS (identiques à maquette.css)
+============================================================ */
+:root{
+  --bg:#0F1117; --bg-elevated:#13161D; --sidebar:#171B22; --card:#1C212B;
+  --card-hover:#232A37; --border:#262C38; --border-soft:#20252F;
+  --accent:#3B82F6; --accent-dim:#3B82F630; --accent-soft:#3B82F615;
+  --success:#22C55E; --success-soft:#22C55E18; --danger:#EF4444; --danger-soft:#EF444418;
+  --warn:#FFD86B; --warn-soft:#FFD86B12;
+  --text:#fff; --text-secondary:#A0AEC0; --text-tertiary:#5B6472;
+  --font-ui:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;
+  --radius-sm:6px; --radius:10px; --radius-lg:16px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:var(--font-ui);background:var(--bg);color:var(--text);overflow:hidden;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#2A303C;border-radius:10px}
+button{font-family:inherit;cursor:pointer}
+a{color:inherit;text-decoration:none}
+svg{display:block}
+.hidden{display:none!important}
+.mono{font-family:var(--font-mono)}
+
+/* Boutons */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 16px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:500;white-space:nowrap;transition:.18s}
+.btn svg{width:15px;height:15px;flex-shrink:0}
+.btn:hover{background:var(--card-hover);border-color:#333b4a}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover{background:#4C8DF7}
+.btn-danger{background:var(--danger-soft);border-color:#EF444440;color:#FF8787}
+.btn-danger:hover{background:#EF444430}
+.btn-sm{padding:6px 11px;font-size:12.5px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:var(--radius-sm);border:1px solid transparent;background:transparent;color:var(--text-secondary);flex-shrink:0}
+.icon-btn svg{width:16px;height:16px}
+.icon-btn:hover{background:var(--card-hover);color:var(--text);border-color:var(--border)}
+.icon-btn.danger:hover{background:var(--danger-soft);color:#FF8787}
+.icon-btn.sm{width:26px;height:26px}
+.icon-btn.sm svg{width:14px;height:14px}
+.icon-btn:disabled{opacity:.35;cursor:not-allowed}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:100px;font-size:11px;font-weight:600;white-space:nowrap}
+.badge-blue{background:var(--accent-soft);color:#7CACFB}
+.badge-green{background:var(--success-soft);color:#5EE29A}
+.badge-gray{background:#A0AEC018;color:var(--text-secondary)}
+.badge-red{background:var(--danger-soft);color:#FF8787}
+.badge-warn{background:var(--warn-soft);color:var(--warn)}
+.badge-dot{width:6px;height:6px;border-radius:50%}
+
+/* Formulaires */
+.form-input{width:100%;background:#12151C;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;color:var(--text);font-family:inherit;outline:none;resize:vertical}
+.form-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim)}
+.form-label{display:block;font-size:12.5px;font-weight:600;color:var(--text-secondary);margin-bottom:7px}
+.field-block{margin-bottom:16px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+select.form-input{appearance:none;-webkit-appearance:none;cursor:pointer;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235B6472' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 10px center;padding-right:32px}
+.check-row{display:flex;align-items:center;gap:9px;padding:9px 0}
+.check-row label{font-size:13px;cursor:pointer}
+.switch{position:relative;width:36px;height:20px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.switch .track{position:absolute;inset:0;background:#2A303C;border-radius:100px;transition:.18s}
+.switch .track::before{content:'';position:absolute;width:15px;height:15px;left:2.5px;top:2.5px;background:#fff;border-radius:50%;transition:.18s}
+.switch input:checked + .track{background:var(--accent)}
+.switch input:checked + .track::before{transform:translateX(16px)}
+
+/* États */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:50px 20px;color:var(--text-tertiary);text-align:center;gap:8px}
+.empty-state svg{width:34px;height:34px;opacity:.6}
+.es-title{font-size:15px;font-weight:600;color:var(--text-secondary)}
+.es-desc{font-size:13px;max-width:340px}
+.skeleton{background:linear-gradient(90deg,var(--card) 25%,var(--card-hover) 50%,var(--card) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:var(--radius)}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.mini-spinner{width:13px;height:13px;border-radius:50%;border:2px solid var(--accent-dim);border-top-color:var(--accent);animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Boîtes info / danger */
+.danger-box{background:var(--danger-soft);border:1px solid #EF444440;border-radius:var(--radius);padding:14px 16px;font-size:13px;color:#FFB4B4;line-height:1.6}
+.danger-box b{color:#fff}
+.info-box{background:var(--accent-soft);border:1px solid #3B82F640;border-radius:var(--radius);padding:14px 16px;font-size:13px;color:#B9D3FC;line-height:1.6;margin-bottom:16px;display:flex;gap:10px}
+.info-box svg{width:16px;height:16px;flex-shrink:0;margin-top:1px;color:#7CACFB}
+
+/* ============================================================
+   LAYOUT GÉNÉRAL
+============================================================ */
+#app{height:100vh;width:100vw;display:flex}
+.screen{display:none;height:100vh;width:100vw}
+.screen.active{display:flex}
+
+/* ============================================================
+   LOGIN / REGISTER
+============================================================ */
+#screen-login,#screen-register{align-items:center;justify-content:center;position:relative;overflow:hidden;background:radial-gradient(circle at 15% 20%,rgba(59,130,246,.16),transparent 40%),radial-gradient(circle at 85% 80%,rgba(34,197,94,.08),transparent 45%),var(--bg)}
+.auth-bg{position:absolute;inset:0;opacity:.35;font-family:var(--font-mono);font-size:13px;color:#3B82F6;overflow:hidden;user-select:none}
+.login-card{position:relative;z-index:2;width:400px;max-width:92vw;padding:40px 36px 32px;background:rgba(28,33,43,.72);border:1px solid var(--border);border-radius:var(--radius-lg);backdrop-filter:blur(20px);box-shadow:0 12px 40px -8px rgba(0,0,0,.6)}
+.login-logo{width:44px;height:44px;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#3B82F6,#2563EB);border-radius:12px}
+.login-logo svg{width:24px;height:24px;color:#fff}
+.login-title{text-align:center;font-size:20px;font-weight:700;margin:0 0 4px}
+.login-sub{text-align:center;font-size:13px;color:var(--text-secondary);margin:0 0 28px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12.5px;font-weight:600;color:var(--text-secondary);margin-bottom:7px}
+.field-input{display:flex;align-items:center;gap:10px;background:#12151C;border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 12px}
+.field-input:focus-within{border-color:var(--accent)}
+.field-input svg{width:16px;height:16px;color:var(--text-tertiary);flex-shrink:0}
+.field-input input{border:none;outline:none;background:transparent;color:var(--text);font-size:13.5px;width:100%;font-family:inherit}
+.login-btn{width:100%;justify-content:center;padding:11px;margin-top:6px}
+.login-footer{text-align:center;font-size:12.5px;color:var(--text-secondary);margin-top:20px}
+.login-footer a{color:#7CACFB;font-weight:600;text-decoration:underline;cursor:pointer}
+.login-error{display:flex;gap:9px;background:var(--danger-soft);border:1px solid #EF444440;color:#FF8787;font-size:12.5px;padding:11px 13px;border-radius:var(--radius);margin-bottom:16px}
+
+/* ============================================================
+   SIDEBAR
+============================================================ */
+.sidebar{width:224px;flex-shrink:0;background:var(--sidebar);border-right:1px solid var(--border-soft);display:flex;flex-direction:column;padding:16px 12px}
+.sidebar-logo{display:flex;align-items:center;gap:10px;padding:6px 8px 20px}
+.sidebar-logo .mark{width:28px;height:28px;border-radius:8px;background:linear-gradient(145deg,#3B82F6,#2563EB);display:flex;align-items:center;justify-content:center}
+.sidebar-logo .mark svg{width:16px;height:16px;color:#fff}
+.sidebar-logo span{font-weight:700;font-size:14.5px}
+.nav-group{display:flex;flex-direction:column;gap:2px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--radius-sm);color:var(--text-secondary);font-size:13px;font-weight:500;cursor:pointer}
+.nav-item svg{width:16px;height:16px}
+.nav-item:hover{background:var(--card);color:var(--text)}
+.nav-item.active{background:var(--accent-soft);color:#7CACFB}
+.sidebar-spacer{flex:1}
+.sidebar-bottom{border-top:1px solid var(--border-soft);padding-top:10px}
+.sidebar-user{padding:6px 10px 10px;font-size:11px;color:var(--text-tertiary)}
+.sidebar-user b{color:var(--text-secondary)}
+
+/* ============================================================
+   DASHBOARD
+============================================================ */
+.dash-main{flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{height:60px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 28px;border-bottom:1px solid var(--border-soft)}
+.topbar-search{display:flex;align-items:center;gap:9px;background:#12151C;border:1px solid var(--border);border-radius:8px;padding:8px 12px;width:340px;max-width:40vw}
+.topbar-search svg{width:15px;height:15px;color:var(--text-tertiary)}
+.topbar-search input{border:none;outline:none;background:transparent;color:var(--text);font-size:13px;width:100%}
+.topbar-right{display:flex;align-items:center;gap:14px}
+.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(145deg,#3B82F6,#8B5CF6);display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700;color:#fff}
+.page-header{height:48px;flex-shrink:0;display:flex;align-items:center;padding:0 28px;border-bottom:1px solid var(--border-soft)}
+.back-link{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-secondary);cursor:pointer}
+.back-link svg{width:15px;height:15px}
+.dash-content{flex:1;overflow:auto;padding:28px}
+.dash-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap}
+.dash-head h1{margin:0 0 4px;font-size:22px}
+.dash-head p{margin:0;font-size:13px;color:var(--text-secondary)}
+.dash-actions{display:flex;gap:10px;flex-wrap:wrap}
+.tabs-seg{display:inline-flex;background:var(--bg-elevated);border:1px solid var(--border);border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap}
+.tab-btn{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:8px;border:none;background:transparent;color:var(--text-secondary);font-size:12.5px;font-weight:500}
+.tab-btn svg{width:14px;height:14px}
+.tab-btn.active{background:var(--card-hover);color:var(--text)}
+.db-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.db-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;display:flex;flex-direction:column;gap:10px;transition:.18s;position:relative}
+.db-card:hover{border-color:#333b4a;transform:translateY(-2px)}
+.db-card.archived{opacity:.6}
+.db-card-top{display:flex;align-items:center;justify-content:space-between}
+.db-card-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--accent-soft);color:#7CACFB}
+.db-card-icon svg{width:19px;height:19px}
+.ctx-wrap{position:relative}
+.ctx-menu{position:absolute;right:0;top:34px;z-index:50;min-width:210px;background:var(--card-hover);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 12px 40px -8px rgba(0,0,0,.6);display:none;padding:6px}
+.ctx-menu.open{display:block}
+.ctx-menu button{display:flex;align-items:center;gap:9px;width:100%;padding:8px 10px;border:none;background:transparent;color:var(--text);font-size:12.5px;border-radius:6px;text-align:left}
+.ctx-menu button svg{width:14px;height:14px}
+.ctx-menu button:hover{background:var(--card)}
+.ctx-menu button.danger{color:#FF8787}
+.ctx-menu hr{border:none;border-top:1px solid var(--border-soft);margin:5px 0}
+.db-card h3{margin:0;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.db-card .desc{font-size:12.5px;color:var(--text-secondary);min-height:18px;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.db-card .meta{font-size:11.5px;color:var(--text-secondary);display:flex;gap:6px;align-items:center}
+.db-card .meta .dim{color:var(--text-tertiary)}
+.db-card-footer{display:flex;align-items:center;justify-content:space-between;margin-top:auto;border-top:1px solid var(--border-soft);padding-top:12px}
+.db-card-badges{display:flex;gap:6px}
+.db-card-open{display:inline-flex;align-items:center;gap:6px;color:#7CACFB;font-weight:600;font-size:12.5px;cursor:pointer}
+.db-card-open svg{width:14px;height:14px}
+
+/* ============================================================
+   WORKSPACE
+============================================================ */
+.ws-titlebar{height:56px;flex-shrink:0;display:flex;align-items:center;gap:12px;padding:0 20px;border-bottom:1px solid var(--border-soft)}
+.back-btn{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-secondary)}
+.back-btn svg{width:15px;height:15px}
+.ws-crumb{font-size:13px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ws-crumb b{color:var(--text)}
+.ws-titlebar-right{display:flex;align-items:center;gap:10px;margin-left:auto;flex-wrap:wrap}
+.ws-body{flex:1;display:flex;min-height:0}
+.ws-sidebar{width:230px;flex-shrink:0;background:var(--sidebar);border-right:1px solid var(--border-soft);display:flex;flex-direction:column;padding:14px 10px;overflow:auto}
+.ws-sidebar-head{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-tertiary);padding:0 8px 8px}
+.ws-table-list{display:flex;flex-direction:column;gap:3px;flex:1;overflow:auto}
+.ws-table-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--radius-sm);color:var(--text-secondary);font-size:12.5px;cursor:pointer}
+.ws-table-item svg{width:15px;height:15px;flex-shrink:0}
+.ws-table-item:hover{background:var(--card);color:var(--text)}
+.ws-table-item.active{background:var(--accent-soft);color:#7CACFB}
+.ws-table-item .name-wrap{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+.ws-table-item .name-wrap>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ws-table-item .count{margin-left:auto;font-size:11px;color:var(--text-tertiary)}
+.arch-tag{font-size:9px;color:var(--text-tertiary);border:1px solid var(--border);border-radius:4px;padding:1px 4px}
+.lock-ic{color:var(--warn);display:inline-flex}
+.lock-ic.unlocked{color:var(--success)}
+.ws-sidebar-actions{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--border-soft);padding-top:10px;margin-top:8px}
+.ws-main{flex:1;display:flex;flex-direction:column;min-width:0}
+.db-overview{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--border-soft);background:var(--bg-elevated);font-size:12px;color:var(--text-secondary)}
+.db-overview b{color:var(--text)}
+.db-overview .dim{color:var(--text-tertiary)}
+.ws-main-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border-soft);flex-wrap:wrap}
+.ws-main-head-left{display:flex;align-items:center;gap:12px;min-width:0}
+.ws-main-head-left>svg{width:22px;height:22px;color:#7CACFB;flex-shrink:0}
+.ws-main-head-left h2{margin:0;font-size:17px;display:flex;align-items:center;gap:8px}
+.ws-main-head-left .sub{font-size:11.5px;color:var(--text-tertiary);margin-top:3px}
+.ws-main-actions{display:flex;gap:8px;flex-wrap:wrap}
+.tabs-row{padding:0 20px;border-bottom:1px solid var(--border-soft);display:flex;gap:18px}
+.tabs-row .tabs-seg{border:none;border-radius:0;background:transparent;padding:0;margin-bottom:-1px}
+.tabs-row .tab-btn{border-radius:0;border-bottom:2px solid transparent;padding:12px 16px}
+.tabs-row .tab-btn.active{border-bottom-color:var(--accent);background:transparent;color:#7CACFB}
+.tab-panel{display:none;flex:1;overflow:auto;min-height:0}
+.tab-panel.active{display:block}
+.table-wrap{overflow:auto;height:100%}
+.cols-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.cols-table thead th{text-align:left;padding:10px 12px;color:var(--text-tertiary);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);white-space:nowrap}
+.cols-table tbody tr:hover{background:var(--card)}
+.cols-table td{padding:11px 12px;border-bottom:1px solid var(--border-soft)}
+.cols-table td.date-cell,.cols-table td.ip-cell{font-family:var(--font-mono);color:var(--text-tertiary);font-size:11.5px;white-space:nowrap}
+.col-name{font-weight:600}
+.col-type{font-family:var(--font-mono);color:#7CACFB;font-size:11.5px}
+.pk-tag{display:inline-flex;align-items:center;padding:2px 7px;border-radius:5px;background:var(--warn-soft);color:var(--warn);font-size:10px;font-weight:700}
+.fk-tag{display:inline-flex;align-items:center;padding:2px 7px;border-radius:5px;background:var(--accent-soft);color:#7CACFB;font-size:10px;font-weight:700}
+.chip{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px}
+.chip svg{width:13px;height:13px}
+.chip.yes{background:var(--success-soft);color:var(--success)}
+.chip.no{color:var(--text-tertiary)}
+.row-actions{display:flex;gap:4px;justify-content:flex-end}
+.data-tab-wrap{display:flex;flex-direction:column;height:100%}
+.filters-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.filters-bar .form-input{width:auto}
+/* Relations */
+.rel-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-tertiary);margin:22px 0 10px}
+.rel-section-title:first-child{margin-top:0}
+.rel-current-card{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
+.rel-current-name{font-size:14.5px;font-weight:700}
+.rel-current-sub{font-size:12px;color:var(--text-secondary);margin-top:2px}
+.rel-list{display:flex;flex-direction:column;gap:8px}
+.rel-row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border-soft);border-radius:var(--radius);padding:10px 14px;font-size:12.5px}
+.rel-row-col{font-family:var(--font-mono);font-weight:600}
+.rel-row-target{font-family:var(--font-mono);color:#7CACFB}
+
+/* Panneaux code XML / SQL */
+.ws-right{width:380px;flex-shrink:0;display:flex;flex-direction:column;border-left:1px solid var(--border-soft);background:var(--bg-elevated)}
+.code-pane{display:flex;flex-direction:column;flex:1;min-height:0;border-bottom:1px solid var(--border-soft)}
+.code-pane-head{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:12px;font-weight:600;color:var(--text-secondary);flex-shrink:0}
+.code-pane-head svg{width:15px;height:15px}
+.lang-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;background:var(--accent-soft);color:#7CACFB;font-family:var(--font-mono)}
+.code-pane-head-actions{display:flex;gap:4px;margin-left:auto}
+.code-pane-body{flex:1;min-height:0;padding:0}
+.code-pane-body textarea{width:100%;height:100%;min-height:180px;background:#0B0D12;border:none;outline:none;resize:none;color:#C9D4E3;font-family:var(--font-mono);font-size:11.5px;line-height:1.55;padding:14px}
+.apply-row{display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-bottom:1px solid var(--border-soft);flex-shrink:0}
+.apply-hint{font-size:10.5px;font-family:var(--font-mono);color:var(--text-tertiary);text-align:center}
+.xml-error-bar{padding:6px 12px;font-size:11px;color:#FF8787;background:var(--danger-soft);border-top:1px solid #EF444440}
+
+/* ============================================================
+   MODALS & TOASTS
+============================================================ */
+.modal-overlay{position:fixed;inset:0;background:rgba(6,8,12,.65);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:100;opacity:0;pointer-events:none;transition:.18s}
+.modal-overlay.open{opacity:1;pointer-events:auto}
+.modal{width:440px;max-width:92vw;max-height:86vh;overflow:auto;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:0 12px 40px -8px rgba(0,0,0,.6)}
+.modal.modal-wide{width:580px}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border-soft)}
+.modal-head h3{margin:0;font-size:15.5px;font-weight:700;display:flex;align-items:center;gap:9px}
+.modal-body{padding:20px 22px}
+.modal-body p.desc{color:var(--text-secondary);font-size:13px;margin:0 0 18px;line-height:1.6}
+.modal-footer{display:flex;justify-content:flex-end;gap:10px;padding:16px 22px;border-top:1px solid var(--border-soft)}
+.dropzone{border:1.5px dashed var(--border);border-radius:var(--radius);padding:26px 20px;text-align:center;color:var(--text-secondary);font-size:13px;cursor:pointer}
+.dropzone:hover,.dropzone.dragover{border-color:var(--accent);background:var(--accent-soft)}
+.dropzone b{color:#7CACFB}
+.import-progress{font-size:12px;color:#7CACFB;text-align:center;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px}
+.toast-stack{position:fixed;top:20px;right:20px;z-index:400;display:flex;flex-direction:column;gap:10px}
+.toast{display:flex;align-items:flex-start;gap:11px;width:320px;padding:13px 14px;background:var(--card-hover);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 12px 40px -8px rgba(0,0,0,.6);animation:toastIn .3s}
+@keyframes toastIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
+.toast .ic{width:20px;height:20px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.toast .ic svg{width:12px;height:12px}
+.toast.success .ic{background:var(--success-soft);color:var(--success)}
+.toast.error .ic{background:var(--danger-soft);color:var(--danger)}
+.toast.info .ic{background:var(--accent-soft);color:#7CACFB}
+.toast .txt b{display:block;font-size:13px;margin-bottom:2px}
+.toast .txt span{font-size:12px;color:var(--text-secondary)}
+
+/* ============================================================
+   HISTORY / AUDIT
+============================================================ */
+.tl-group-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-tertiary);margin:22px 0 10px}
+.tl-group-label:first-child{margin-top:0}
+.tl-card{display:flex;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px}
+.tl-dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);margin-top:4px}
+.tl-body{flex:1;min-width:0}
+.tl-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.tl-head .who{font-size:13px;font-weight:600}
+.tl-head .time{font-size:11.5px;color:var(--text-tertiary);font-family:var(--font-mono);margin-left:auto}
+.tl-desc{font-size:12.5px;color:var(--text-secondary);margin:4px 0 8px}
+.tl-meta-row{display:flex;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--text-tertiary)}
+.audit-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.audit-table thead th{text-align:left;padding:10px 12px;color:var(--text-tertiary);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg)}
+.audit-table tbody tr:hover{background:var(--card)}
+.audit-table td{padding:11px 12px;border-bottom:1px solid var(--border-soft)}
+
+/* API / Settings */
+.api-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 22px}
+.api-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px}
+.api-field-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-tertiary);margin-bottom:4px}
+.api-field-value{font-family:var(--font-mono);font-size:13px;display:flex;gap:8px;align-items:center}
+.endpoint-list{display:flex;flex-direction:column;gap:6px}
+.endpoint-row{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border-soft);border-radius:var(--radius);padding:9px 14px;font-size:12.5px;font-family:var(--font-mono)}
+.endpoint-row .dim{color:var(--text-tertiary);font-family:var(--font-ui);margin-left:auto}
+.tcp-box{background:#0B0D12;border:1px solid var(--border);border-radius:var(--radius);padding:14px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:#C9D4E3;overflow:auto}
+@media(max-width:900px){.ws-right{display:none}.sidebar{width:72px}.sidebar-logo span,.nav-item span,.sidebar-user{display:none}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="modal-root"></div>
+<div id="toast-root" class="toast-stack"></div>
+
+<script>
+/* ============================================================
+   CONFIG — URL du backend
+   En dev React, Vite proxyfie /api → http://localhost:5000.
+   Fichier autonome : renseigner l'URL complète du backend.
+============================================================ */
+const API_URL = 'http://localhost:5000/api';
+
+/* ============================================================
+   STOCKAGE SÛR (localStorage peut être bloqué en iframe sandbox)
+============================================================ */
+const storage = {
+  _mem: {},
+  get(k){ try { return localStorage.getItem(k); } catch(e){ return this._mem[k] || null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch(e){ this._mem[k]=v; } },
+  del(k){ try { localStorage.removeItem(k); } catch(e){ delete this._mem[k]; } }
+};
+
+/* ============================================================
+   ICÔNES (inline SVG)
+============================================================ */
+const IC = {
+  logo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15l2 2 4-4"/></svg>',
+  db:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>',
+  clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
+  shield:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>',
+  users:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11h-6M16 5h6M19 2v6"/></svg>',
+  plug:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a6 6 0 0 1-12 0V8Z"/></svg>',
+  gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15z"/></svg>',
+  logout:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>',
+  table:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>',
+  lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+  unlock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.5-2"/></svg>',
+  edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>',
+  down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>',
+  copy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  fs:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>',
+  search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  err:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+  info:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>',
+  back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>',
+  arrow:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>',
+  dots:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>',
+  group:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  key:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>'
+};
+
+/* ============================================================
+   CLIENT API (même sémantique que src/services/api.js)
+============================================================ */
+function getToken(){ return storage.get('xmlforge_token'); }
+function setToken(t){ storage.set('xmlforge_token', t); }
+
+function decodeToken(token){
+  try {
+    const payload = token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+    return JSON.parse(decodeURIComponent(atob(payload).split('').map(c=>'%'+('00'+c.charCodeAt(0).toString(16)).slice(-2)).join('')));
+  } catch(e){ return null; }
+}
+function isTokenExpired(token){
+  token = token || getToken();
+  if(!token) return true;
+  const p = decodeToken(token);
+  return !p || !p.exp || p.exp*1000 <= Date.now();
+}
+function clearSession(){
+  storage.del('xmlforge_token');
+  storage.del('xmlforge_user');
+}
+
+function friendlyMessage(status, payload){
+  if (payload && payload.message) return payload.message;
+  if (status === 401) return 'Session expirée. Veuillez vous reconnecter.';
+  if (status === 403) return 'Vous ne disposez pas des droits nécessaires.';
+  if (status === 404) return 'La ressource demandée est introuvable.';
+  if (status === 409) return 'Cette base a été modifiée depuis votre dernière synchronisation.';
+  if (status === 400 || status === 422) return 'Les données envoyées sont invalides.';
+  if (status >= 500) return 'Le serveur XMLForge a rencontré une erreur.';
+  return 'Erreur HTTP ' + status;
+}
+
+async function api(path, { method='GET', body, withAuth=true, raw=false, headers: custom = {} } = {}){
+  const token = getToken();
+  if (withAuth && token && isTokenExpired(token)){
+    clearSession();
+    render();
+    throw { status:401, message:'Session expirée. Veuillez vous reconnecter.', isConflict:false };
+  }
+  const isForm = (typeof FormData !== 'undefined') && body instanceof FormData;
+  const headers = { ...custom };
+  if (withAuth && token) headers['Authorization'] = 'Bearer ' + token;
+  if (!isForm && body !== undefined) headers['Content-Type'] = 'application/json';
+  let response;
+  try {
+    response = await fetch(API_URL + (path.startsWith('/')?path:'/'+path), {
+      method, headers, body: (body === undefined ? undefined : isForm ? body : JSON.stringify(body))
+    });
+  } catch(e){
+    throw { status:0, message:'Impossible de joindre le backend XMLForge (' + API_URL + ').', isConflict:false };
+  }
+  if (raw && response.ok) return response;
+  let payload = null;
+  try { payload = await response.json(); } catch(e){ payload = null; }
+  if (response.status === 401 && withAuth){ clearSession(); render(); }
+  if (!response.ok){
+    throw { status: response.status, message: friendlyMessage(response.status, payload), isConflict: response.status === 409, payload };
+  }
+  return payload ? payload.data : null;
+}
+function apiBlob(path, filename){
+  return api(path, { raw:true }).then(async r => {
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    return true;
+  });
+}
+
+/* ============================================================
+   ÉTAT GLOBAL
+============================================================ */
+const App = {
+  route: 'login',
+  user: null,
+  loading: false,
+  // Dashboard
+  databases: [], search:'', scopeFilter:'all', openCtx:null,
+  // Workspace
+  db:null, tables:[], currentTable:null, columns:[], rows:[], rowsTotal:0,
+  page:1, pageSize:25, rowSearch:'', rowSort:'', rowOrder:'ASC', tab:'structure',
+  documentVersion:null, xmlCode:'', sqlCode:'', xmlError:null, relationColumns:{},
+  unlocked: [],
+  // modals & forms
+  colForm:null, rowForm:null, newTableForm:null,
+  importKind:'xml', exportTarget:null,
+  dbPermissions:[], tablePermissions:[]
+};
+
+function isAdmin(){ return App.roles && App.roles.includes('ADMIN'); }
+function extractRoles(user){
+  if (!user) return [];
+  if (Array.isArray(user.roles) && user.roles.length) return user.roles.map(r=>String(r).toUpperCase());
+  if (user.role) return [String(user.role).toUpperCase()];
+  if (user.is_admin === true) return ['ADMIN'];
+  return ['USER'];
+}
+function accessLevel(entity){
+  return (entity && entity.access && entity.access.level) || (entity && entity.is_owner ? 'MANAGE' : 'NONE');
+}
+function levelBadge(rights){
+  if (rights.can_admin) return 'MANAGE';
+  if (rights.can_write || rights.can_ddl) return 'EDIT';
+  if (rights.can_read) return 'VIEW';
+  return 'NONE';
+}
+
+/* ============================================================
+   TOASTS
+============================================================ */
+function notify(type, title, msg){
+  const root = document.getElementById('toast-root');
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.innerHTML = '<div class="ic">' + (type==='success'?IC.check:type==='error'?IC.err:IC.info) + '</div>' +
+    '<div class="txt"><b></b><span></span></div>';
+  el.querySelector('b').textContent = title;
+  el.querySelector('span').textContent = msg || '';
+  root.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translateX(30px)'; el.style.transition='.25s'; }, 3400);
+  setTimeout(()=>{ el.remove(); }, 3700);
+}
+
+/* ============================================================
+   MODALS
+============================================================ */
+function openModal(html, wide){
+  const root = document.getElementById('modal-root');
+  root.innerHTML = '<div class="modal-overlay open" onclick="if(event.target===this)closeModal()"><div class="modal '+(wide?'modal-wide':'')+'">'+html+'</div></div>';
+}
+function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
+
+/* ============================================================
+   ROUTEUR / RENDU
+============================================================ */
+function navigate(route){
+  App.route = route; render();
+  if (route === 'dashboard') App.loadDatabases();
+  else if (route === 'users') App.loadUsers();
+  else if (route === 'audit') App.loadAudit();
+  else if (route === 'history') App.loadHistory();
+  else if (route === 'settings') App.loadTcp();
+}
+
+function render(){
+  const app = document.getElementById('app');
+  if (App.loading){ app.innerHTML = center('<span class="mini-spinner"></span> Chargement...'); return; }
+  switch(App.route){
+    case 'login': app.innerHTML = renderLogin(); break;
+    case 'register': app.innerHTML = renderRegister(); break;
+    case 'dashboard': app.innerHTML = renderDashboard(); break;
+    case 'workspace': app.innerHTML = renderWorkspace(); break;
+    case 'users': app.innerHTML = isAdmin() ? renderUsers() : forbidden(); break;
+    case 'audit': app.innerHTML = isAdmin() ? renderAudit() : forbidden(); break;
+    case 'history': app.innerHTML = isAdmin() ? renderHistory() : forbidden(); break;
+    case 'settings': app.innerHTML = renderSettings(); break;
+    default: app.innerHTML = renderLogin();
+  }
+  // Synchroniser les éditeurs de code après chaque rendu
+  const xe = document.getElementById('xml-editor');
+  if (xe && xe.value !== (App.xmlCode || '')) xe.value = App.xmlCode || '';
+  const se = document.getElementById('sql-editor');
+  if (se && se.value !== (App.sqlCode || '')) se.value = App.sqlCode || '';
+}
+function center(inner){ return '<div style="height:100vh;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--text-secondary);font-size:13px">'+inner+'</div>'; }
+function forbidden(){ return '<div style="height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px"><div style="font-size:48px">🔒</div><div style="font-size:16px;font-weight:600">Accès refusé</div><div style="font-size:13px;color:var(--text-secondary);max-width:340px;text-align:center">Cette page nécessite le rôle ADMIN attribué par le backend.</div><button class="btn btn-primary" onclick="navigate(\'dashboard\')">Retour Dashboard</button></div>'; }
+
+/* ============================================================
+   SIDEBAR (partagé)
+============================================================ */
+function sidebar(active){
+  const u = App.user || {};
+  const nav = [
+    ['databases','Bases de données', IC.db, "navigate('dashboard')"],
+    ['history','Historique', IC.clock, "navigate('history')"],
+    ['api','API & TCP/IP', IC.plug, "navigate('settings')"],
+    ['users','Utilisateurs', IC.users, "navigate('users')"],
+    ['audit','Audit', IC.shield, "navigate('audit')"],
+  ];
+  let items = '';
+  nav.forEach(([key,label,icon,fn]) => {
+    if ((key==='history'||key==='users'||key==='audit') && !isAdmin()) return;
+    items += '<a class="nav-item '+(active===key?'active':'')+'" onclick="'+fn+'"><span>'+icon+'</span><span>'+label+'</span></a>';
+  });
+  items += '<a class="nav-item" onclick="" style="opacity:.5" title="Aucune navigation — page visuelle"><span>'+IC.gear+'</span><span>Paramètres</span></a>';
+  return '<aside class="sidebar">' +
+    '<div class="sidebar-logo"><div class="mark">'+IC.logo+'</div><span>XMLForge</span></div>' +
+    '<div class="nav-group">'+items+'</div>' +
+    '<div class="sidebar-spacer"></div>' +
+    '<div class="sidebar-bottom">' +
+      '<div class="sidebar-user">Connecté en tant que <b>'+(u.full_name||'Utilisateur')+'</b> '+(isAdmin()?'<span class="badge badge-blue">ADMIN</span>':'')+'</div>' +
+      '<a class="nav-item" onclick="App.logout()"><span>'+IC.logout+'</span><span>Déconnexion</span></a>' +
+    '</div></aside>';
+}
+
+/* ============================================================
+   AUTH
+============================================================ */
+async function boot(){
+  App.loading = true; render();
+  const token = getToken();
+  if (token && !isTokenExpired(token)){
+    try {
+      const me = await api('/me');
+      App.user = me; App.roles = extractRoles(me);
+      storage.set('xmlforge_user', JSON.stringify(me));
+      await App.loadUnlocks();
+      App.route = 'dashboard';
+      App.loading = false; render();
+      App.loadDatabases();
+      return;
+    } catch(e){ clearSession(); }
+  } else {
+    if (token) clearSession();
+  }
+  App.route = 'login';
+  App.loading = false; render();
+}
+App.login = async function(){
+  const email = val('login-email'); const password = val('login-pass');
+  if (!email || !password){ notify('error','Champs requis','Email et mot de passe obligatoires'); return; }
+  App.loading = true; render();
+  try {
+    const data = await api('/login', { method:'POST', body:{ email, password }, withAuth:false });
+    setToken(data.access_token);
+    storage.set('xmlforge_user', JSON.stringify(data.user));
+    App.user = data.user; App.roles = extractRoles(data.user);
+    await App.loadUnlocks();
+    App.loading = false;
+    App.route = 'dashboard';
+    notify('success','Connexion réussie','Bienvenue sur XMLForge');
+    App.loadDatabases();
+    return;
+  } catch(e){ notify('error','Échec de connexion', e.message); }
+  App.loading = false; render();
+};
+App.register = async function(){
+  const full_name = val('reg-name'), email = val('reg-email'), password = val('reg-pass'), password2 = val('reg-pass2');
+  if (!full_name || !email || !password){ notify('error','Champs requis','Remplissez tous les champs'); return; }
+  if (password !== password2){ notify('error','Mots de passe différents','Vérifiez la confirmation'); return; }
+  App.loading = true; render();
+  try {
+    await api('/register', { method:'POST', body:{ full_name, email, password }, withAuth:false });
+    notify('success','Compte créé','Vous pouvez maintenant vous connecter');
+    App.route = 'login';
+  } catch(e){ notify('error','Échec inscription', e.message); }
+  App.loading = false; render();
+};
+App.logout = async function(){
+  try { await api('/logout', { method:'POST' }); } catch(e){}
+  clearSession(); App.user=null; App.roles=[];
+  App.route='login'; render();
+};
+function val(id){ const el = document.getElementById(id); return el ? el.value : ''; }
+function valNum(id){ const v = val(id); return v === '' ? null : Number(v); }
+
+/* ============================================================
+   LOGIN / REGISTER (vues)
+============================================================ */
+function renderLogin(){
+  return '<div class="screen active" id="screen-login">' +
+    '<div class="auth-bg" style="padding:40px">&lt;database name="library"&gt;<br>&nbsp;&nbsp;&lt;table name="book"&gt;<br>&nbsp;&nbsp;&nbsp;&nbsp;&lt;column type="varchar"/&gt;<br>&nbsp;&nbsp;&lt;/table&gt;<br>&lt;/database&gt;</div>' +
+    '<div class="login-card">' +
+      '<div class="login-logo">'+IC.logo+'</div>' +
+      '<h1 class="login-title">Connexion à XMLForge</h1>' +
+      '<p class="login-sub">Gérez vos bases de données XML et générez du SQL</p>' +
+      '<form onsubmit="event.preventDefault();App.login()">' +
+        '<div class="field"><label>Adresse e-mail</label><div class="field-input"><input id="login-email" type="email" placeholder="vous@exemple.com" autocomplete="username"/></div></div>' +
+        '<div class="field"><label>Mot de passe</label><div class="field-input"><input id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password"/></div></div>' +
+        '<button class="btn btn-primary login-btn" type="submit">'+IC.arrow+'Connexion</button>' +
+      '</form>' +
+      '<p class="login-footer">Pas encore de compte ? <a onclick="navigate(\'register\')">Créer un compte</a></p>' +
+    '</div></div>';
+}
+function renderRegister(){
+  return '<div class="screen active" id="screen-register">' +
+    '<div class="auth-bg" style="padding:40px;top:auto;bottom:0;text-align:right">CREATE TABLE client (<br>id INT PRIMARY KEY,<br>nom VARCHAR(255)<br>);</div>' +
+    '<div class="login-card">' +
+      '<div class="login-logo">'+IC.logo+'</div>' +
+      '<h1 class="login-title">Créer un compte</h1>' +
+      '<p class="login-sub">Le rôle USER est attribué par défaut par le backend</p>' +
+      '<form onsubmit="event.preventDefault();App.register()">' +
+        '<div class="field"><label>Nom complet</label><div class="field-input"><input id="reg-name" type="text" placeholder="Jean Dupont"/></div></div>' +
+        '<div class="field"><label>Adresse e-mail</label><div class="field-input"><input id="reg-email" type="email" placeholder="vous@exemple.com"/></div></div>' +
+        '<div class="field"><label>Mot de passe</label><div class="field-input"><input id="reg-pass" type="password" placeholder="••••••••"/></div></div>' +
+        '<div class="field"><label>Confirmation</label><div class="field-input"><input id="reg-pass2" type="password" placeholder="••••••••"/></div></div>' +
+        '<button class="btn btn-primary login-btn" type="submit">Créer le compte</button>' +
+      '</form>' +
+      '<p class="login-footer">Déjà inscrit ? <a onclick="navigate(\'login\')">Se connecter</a></p>' +
+    '</div></div>';
+}
+
+/* ============================================================
+   DASHBOARD
+============================================================ */
+App.loadDatabases = async function(){
+  try {
+    const data = await api('/databases?include_archived=true');
+    App.databases = data || [];
+  } catch(e){ notify('error','Erreur', e.message); App.databases = []; }
+  render();
+};
+function renderDashboard(){
+  const u = App.user || {};
+  const filtered = App.databases.filter(d => {
+    const okSearch = !App.search || (d.name||'').toLowerCase().includes(App.search.toLowerCase());
+    const okScope = App.scopeFilter==='all' || d.scope===App.scopeFilter;
+    return okSearch && okScope;
+  });
+  let cards = '';
+  if (App.databases.length === 0){
+    cards = '<div class="empty-state">'+IC.search+'<div class="es-title">Aucune base</div><div class="es-desc">Créez votre première base ou importez un fichier XML/SQL.</div></div>';
+  } else if (filtered.length === 0){
+    cards = '<div class="empty-state">'+IC.search+'<div class="es-title">Aucun résultat</div><div class="es-desc">Aucune base ne correspond aux filtres.</div></div>';
+  } else {
+    cards = '<div class="db-grid">' + filtered.map(d => {
+      const archived = d.status === 'ARCHIVED';
+      const canManage = d.access && d.access.can_admin;
+      const canWrite = d.access && d.access.can_write;
+      const level = accessLevel(d);
+      return '<div class="db-card '+(archived?'archived':'')+'">' +
+        '<div class="db-card-top">' +
+          '<div class="db-card-icon">'+(d.scope==='COMMON'?IC.group:IC.db)+'</div>' +
+          '<div class="ctx-wrap">' +
+            '<button class="icon-btn" onclick="App.toggleCtx('+d.id+')">'+IC.dots+'</button>' +
+            '<div class="ctx-menu" id="ctx-'+d.id+'">' +
+              (canWrite ? '<button onclick="App.editDb('+d.id+')">'+IC.edit+'Modifier</button>' : '') +
+              (canManage ? '<button onclick="App.duplicateDb('+d.id+')">'+IC.copy+'Dupliquer</button>' : '') +
+              (canManage ? '<button onclick="App.exportFull('+d.id+')">'+IC.down+'Export complet XMLForge</button>' : '') +
+              (canManage ? '<button onclick="App.openDbAccess('+d.id+')">'+IC.group+'Gérer les accès</button>' : '') +
+              (canManage ? '<hr/>' : '') +
+              (canManage ? '<button onclick="App.toggleArchiveDb('+d.id+')">'+(archived?'Restaurer':'Archiver')+'</button>' : '') +
+              (canManage ? '<hr/>' : '') +
+              (canManage ? '<button class="danger" onclick="App.deleteDb('+d.id+')">'+IC.trash+'Supprimer</button>' : '') +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<h3>'+esc(d.name)+'</h3><p class="desc">'+esc(d.description||'Aucune description')+'</p>' +
+        '<div class="meta"><span>'+(d.tables_count||0)+' tables</span><span class="dim">·</span><span>Propriétaire : '+(d.owner_name||d.creator_name||'—')+'</span></div>' +
+        '<div class="meta"><span class="dim">Accès '+level+'</span></div>' +
+        '<div class="db-card-footer">' +
+          '<div class="db-card-badges">' +
+            '<span class="badge '+(archived?'badge-gray':'badge-green')+'"><span class="badge-dot" style="background:'+(archived?'#A0AEC0':'#22C55E')+'"></span>'+(archived?'ARCHIVÉ':'ACTIF')+'</span>' +
+            '<span class="badge '+(d.scope==='COMMON'?'badge-warn':'badge-blue')+'">'+(d.scope==='COMMON'?'Commune':'Personnelle')+'</span>' +
+          '</div>' +
+          '<a class="db-card-open" onclick="App.openDb('+d.id+')">Ouvrir '+IC.arrow+'</a>' +
+        '</div>' +
+      '</div>';
+    }).join('') + '</div>';
+  }
+  return '<div class="screen active" id="screen-dashboard">' +
+    sidebar('databases') +
+    '<div class="dash-main">' +
+      '<div class="topbar">' +
+        '<div class="topbar-search">'+IC.search+'<input id="db-search" placeholder="Rechercher une base..." value="'+esc(App.search)+'" oninput="App.search=this.value;renderDashboardOnly()"/></div>' +
+        '<div class="topbar-right"><span class="badge badge-green"><span class="badge-dot" style="background:#22C55E"></span>Connecté</span><div class="avatar">'+initials()+'</div></div>' +
+      '</div>' +
+      '<div class="dash-content">' +
+        '<div class="dash-head">' +
+          '<div><h1>Mes bases de données</h1><p>'+(filtered.length)+' base(s)'+(App.scopeFilter==='PERSONAL'?' personnelles':App.scopeFilter==='COMMON'?' communes':'')+' · synchronisées avec XMLForge</p></div>' +
+          '<div class="dash-actions">' +
+            '<button class="btn" onclick="App.openImport()">'+IC.down+'Importer</button>' +
+            '<button class="btn" onclick="App.openExportFull()">'+IC.down+'Export complet</button>' +
+            '<button class="btn btn-primary" onclick="App.openNewDb()">'+IC.plus+'Nouvelle base</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="tabs-seg" style="margin-bottom:18px">' +
+          '<button class="tab-btn '+(App.scopeFilter==='all'?'active':'')+'" onclick="App.scopeFilter=\'all\';renderDashboardOnly()">'+IC.db+'Toutes</button>' +
+          '<button class="tab-btn '+(App.scopeFilter==='PERSONAL'?'active':'')+'" onclick="App.scopeFilter=\'PERSONAL\';renderDashboardOnly()">'+IC.lock+'Personnelles</button>' +
+          '<button class="tab-btn '+(App.scopeFilter==='COMMON'?'active':'')+'" onclick="App.scopeFilter=\'COMMON\';renderDashboardOnly()">'+IC.group+'Communes</button>' +
+        '</div>' +
+        cards +
+      '</div>' +
+    '</div></div>';
+}
+function renderDashboardOnly(){
+  const app = document.getElementById('app');
+  const prev = document.getElementById('db-search');
+  const caret = prev ? prev.selectionStart : App.search.length;
+  app.innerHTML = renderDashboard();
+  const inp = document.getElementById('db-search');
+  if (inp){ inp.focus(); try { inp.setSelectionRange(caret, caret); } catch(e){} }
+}
+function initials(){ const u = App.user||{}; return (u.full_name||'N').slice(0,2).toUpperCase(); }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+App.toggleCtx = function(id){
+  const was = App.openCtx;
+  App.openCtx = (was===id) ? null : id;
+  document.querySelectorAll('.ctx-menu').forEach(m=>m.classList.remove('open'));
+  if (App.openCtx != null){ const el = document.getElementById('ctx-'+App.openCtx); if(el) el.classList.add('open'); }
+};
+document.addEventListener('click', function(e){
+  if (!e.target.closest('.ctx-wrap')){ document.querySelectorAll('.ctx-menu').forEach(m=>m.classList.remove('open')); }
+});
+
+/* --- Création / édition / archivage / suppression de base --- */
+App.openNewDb = function(){
+  openModal('<div class="modal-head"><h3>'+IC.db+'Nouvelle base de données</h3><button class="icon-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="modal-body">' +
+      '<div class="field-block"><label class="form-label">Nom de la base</label><input class="form-input" id="ndb-name" placeholder="Bibliothèque..."/></div>' +
+      '<div class="field-block"><label class="form-label">Description</label><input class="form-input" id="ndb-desc" placeholder="Description"/></div>' +
+      '<div class="field-block"><label class="form-label">Visibilité</label><select class="form-input" id="ndb-scope"><option value="PERSONAL">PERSONAL — privée</option><option value="COMMON">COMMON — partageable par permissions</option></select></div>' +
+    '</div>' +
+    '<div class="modal-footer"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="App.createDb()">Créer la base</button></div>');
+};
+App.createDb = async function(){
+  const name = val('ndb-name').trim();
+  if (!name){ notify('error','Nom requis','Saisissez un nom'); return; }
+  try {
+    await api('/databases', { method:'POST', body:{ name, description: val('ndb-desc').trim(), scope: val('ndb-scope') } });
+    closeModal(); notify('success','Base créée','« '+name+' » créée');
+    await App.loadDatabases();
+  } catch(e){ notify('error','Erreur création', e.message); }
+};
+App.editDb = function(id){
+  const d = App.databases.find(x=>x.id===id); if(!d) return;
+  if (d.status==='ARCHIVED'){ notify('error','Archivée','Restaurez d\'abord'); return; }
+  openModal('<div class="modal-head"><h3>'+IC.edit+'Modifier la base</h3><button class="icon-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="modal-body">' +
+      '<div class="field-block"><label class="form-label">Nom</label><input class="form-input" id="edb-name" value="'+esc(d.name)+'"/></div>' +
+      '<div class="field-block"><label class="form-label">Description</label><input class="form-input" id="edb-desc" value="'+esc(d.description||'')+'"/></div>' +
+      '<div class="field-block"><label class="form-label">Portée</label><select class="form-input" id="edb-scope" '+(d.access && d.access.can_admin?'':'disabled')+'><option value="PERSONAL" '+(d.scope==='PERSONAL'?'selected':'')+'>PERSONAL</option><option value="COMMON" '+(d.scope==='COMMON'?'selected':'')+'>COMMON</option></select></div>' +
+      '<div class="info-box">'+IC.info+'<span>Le backend exige le droit <b>admin</b> pour changer la portée. Un utilisateur EDIT peut renommer/décrire.</span></div>' +
+    '</div>' +
+    '<div class="modal-footer"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="App.saveEditDb('+d.id+')">Enregistrer</button></div>', true);
+};
+App.saveEditDb = async function(id){
+  const d = App.databases.find(x=>x.id===id);
+  const payload = { name: val('edb-name').trim(), description: val('edb-desc').trim() };
+  if (d && d.access && d.access.can_admin) payload.scope = val('edb-scope');
+  try {
+    await api('/databases/'+id, { method:'PUT', body:{ ...payload, expected_version: d ? d.document_version : null } });
+    closeModal(); notify('success','Base mise à jour','');
+    await App.loadDatabases();
+  } catch(e){
+    if (e.isConflict) openConflict();
+    else notify('error','Erreur', e.message);
+  }
+};
+App.toggleArchiveDb = async function(id){
+  const d = App.databases.find(x=>x.id===id);
+  try {
+    await api('/databases/'+id+'/'+(d.status==='ARCHIVED'?'restore':'archive'), { method:'POST', body:{} });
+    notify(d.status==='ARCHIVED'?'success':'info', d.status==='ARCHIVED'?'Restaurée':'Archivée', '« '+d.name+' »');
+    await App.loadDatabases();
+  } catch(e){ notify('error','Erreur', e.message); }
+};
+App.deleteDb = async function(id){
+  const d = App.databases.find(x=>x.id===id);
+  if (!window.confirm('Supprimer définitivement « '+d.name+' » ?')) return;
+  try {
+    await api('/databases/'+id, { method:'DELETE' });
+    notify('error','Supprimée','« '+d.name+' » supprimée');
+    await App.loadDatabases();
+  } catch(e){ notify('error','Erreur', e.message); }
+};
+App.duplicateDb = async function(id){
+  const d = App.databases.find(x=>x.id===id);
+  try {
+    const res = await api('/export/xml/'+id);
+    const base = String(d.name||'base').replace(/[^A-Za-z0-9_]/g,'_').replace(/^[^A-Za-z_]/,'_');
+    await api('/import/xml', { method:'POST', body:{ xml: res.xml, database_name: base+'_copie' } });
+    notify('success','Dupliquée','Copie de « '+d.name+' » créée');
+    await App.loadDatabases();
+  } catch(e){ notify('error','Erreur', e.message); }
+};
+
+/* --- Import (XML / SQL / Projet) --- */
+App.openImport = function(){
+  App.importKind = 'xml';
+  openModal('<div class="modal-head"><h3>'+IC.down+'Importer une base</h3><button class="icon-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="modal-body">' +
+      '<div class="tabs-seg" style="margin-bottom:16px">' +
+        '<button class="tab-btn active" id="imp-xml" onclick="App.setImportKind(\'xml\')">XML (structure)</button>' +
+        '<button class="tab-btn" id="imp-sql" onclick="App.setImportKind(\'sql\')">SQL (script)</button>' +
+        '<button class="tab-btn" id="imp-project" onclick="App.setImportKind(\'project\')">Projet XMLForge</button>' +
+      '</div>' +
+      '<p class="desc" id="imp-desc">Analyse un fichier XMLForge décrivant tables, colonnes et données. La base est créée avec le nom du document.</p>' +
+      '<div class="dropzone" id="imp-drop" onclick="document.getElementById(\'imp-file\').click()"><b>Cliquer</b> ou glisser un fichier</div>' +
+      '<input type="file" id="imp-file" class="hidden" accept=".xml" onchange="App.importFile(this.files[0])"/>' +
+      '<div class="import-progress hidden" id="imp-progress"><span class="mini-spinner"></span>Import...</div>' +
+    '</div>' +
+    '<div class="modal-footer"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="document.getElementById(\'imp-file\').click()">Importer</button></div>');
+  const dz = document.getElementById('imp-drop');
+  dz.addEventListener('dragover', e=>{e.preventDefault();dz.classList.add('dragover')});
+  dz.addEventListener('dragleave', ()=>{dz.classList.remove('dragover')});
+  dz.addEventListener('drop', e=>{e.preventDefault();dz.classList.remove('dragover');App.importFile(e.dataTransfer.files[0])});
+};
+App.setImportKind = function(kind){
+  App.importKind = kind;
+  ['imp-xml','imp-sql','imp-project'].forEach(id=>document.getElementById(id).classList.toggle('active', id==='imp-'+kind));
+  document.getElementById('imp-file').accept = (kind==='sql'?'.sql':'.xml');
+  document.getElementById('imp-desc').textContent =
+    kind==='xml' ? 'Analyse un fichier XMLForge décrivant tables, colonnes et données. La base est créée avec le nom du document.' :
+    kind==='sql' ? 'Convertit un script SQL (CREATE TABLE + INSERT) en XML puis crée la base. Limitations du parseur SQL documentées.' :
+    'Importe un export complet XMLForge (structure + données + métadonnées). Nécessite un export projet généré par XMLForge.';
+};
+App.importFile = async function(file){
+  if (!file) return;
+  document.getElementById('imp-progress').classList.remove('hidden');
+  try {
+    if (App.importKind==='sql') await api('/import/sql', { method:'POST', body: buildForm(file) });
+    else if (App.importKind==='project') await api('/import/project', { method:'POST', body: buildForm(file) });
+    else await api('/import/xml', { method:'POST', body: buildForm(file) });
+    closeModal(); notify('success','Import réussi','Nouvelle base créée');
+    await App.loadDatabases();
+  } catch(e){ notify('error','Erreur import', e.message); }
+};
+function buildForm(file){
+  const fd = new FormData(); fd.append('file', file); return fd;
+}
+
+/* --- Export complet (projet) --- */
+App.openExportFull = function(){
+  App.exportTarget = null;
+  const adminDbs = App.databases.filter(d=>d.access && d.access.can_admin);
+  openModal('<div class="modal-head"><h3>'+IC.down+'Export complet XMLForge</h3><button class="icon-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="modal-body">' +
+      '<p class="desc">Génère le projet complet fourni par Flask : structure XML, données, relations et métadonnées nécessaires à la reconstruction.</p>' +
+      '<div class="field-block"><label class="form-label">Base à exporter</label><select class="form-input" id="exp-target"><option value="">Sélectionner...</option>' +
+        adminDbs.map(d=>'<option value="'+d.id+'">'+esc(d.name)+'</option>').join('') +
+      '</select></div>' +
+    '</div>' +
+    '<div class="modal-footer"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="App.exportFullFromSelect()">Générer l\'export</button></div>');
+};
+App.exportFull = function(id){
+  const d = App.databases.find(x=>x.id===id);
+  App.doExportProject(id, d && d.name);
+};
+App.exportFullFromSelect = function(){
+  const id = valNum('exp-target'); if(!id){ notify('error','Base requise',''); return; }
+  const d = App.databases.find(x=>x.id===id);
+  App.doExportProject(id, d && d.name);
+};
+App.doExportProject = async function(id, name){
+  try {
+    await apiBlob('/export/project/'+id+'?download=true', (name||'project_'+id)+'.xml');
+    closeModal(); notify('success','Export complet généré','Structure + données + métadonnées');
+  } catch(e){ notify('error','Erreur export complet', e.message); }
+};
+
+/* --- Partage de base --- */
+App.openDbAccess = function(id){
+  const d = App.databases.find(x=>x.id===id);
+  App.dbAccessId = id; App.dbPermissions = [];
+  openModal('<div class="modal-head"><h3>'+IC.group+'Accès à '+esc(d && d.name)+'</h3><button class="icon-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="modal-body">' +
+      '<p class="desc">Partagez cette base par email. VIEW = lecture, EDIT = écritures + structure, MANAGE = administration des accès. Les bases COMMON ne deviennent visibles qu\'après un partage explicite.</p>' +
+      '<div class="grid-2"><input class="form-input" id="acc-email" type="email" placeholder="utilisateur@exemple.com"/><select class="form-input" id="acc-level"><option>VIEW</option><option>EDIT</option><option>MANAGE</option></select></div>' +
+      '<button class="btn btn-primary" style="margin-top:12px" onclick="App.grantDbAccess()">Accorder</button>' +
+      '<div style="margin-top:18px" id="acc-list"><span class="mini-spinner"></span> Chargement...</div>' +
+    '</div>' +
+    '<div class="modal-footer"><button class="btn" onclick="closeModal()">Fermer</button></div>', true);
+  App.loadDbPermissions();
+};
+App.loadDbPermissions = async function(){
+  try {
+    App.dbPermissions = await api('/databases/'+App.dbAccessId+'/permissions');
+  } catch(e){ App.dbPermissions = []; }
+  const el = document.getElementById('acc-list');
+  if (!el) return;
+  if (App.dbPermissions.length===0) el.innerHTML = '<div class="empty-state" style="padding:20px"><div class="es-title">Aucun partage</div></div>';
+  else el.innerHTML = App.dbPermissions.map(p =>
+    '<div class="rel-row"><span class="rel-row-col">'+esc(p.user_email||('User #'+p.user_id))+'</span>' +
+    '<span class="badge badge-blue">'+levelBadge(p)+'</span>' +
+    '<button class="icon-btn sm danger" style="margin-left:auto" onclick="App.revokeDbAccess('+p.user_id+')">✕</button></div>').join('');
+};
+App.grantDbAccess = async function(){
+  const email = val('acc-email').trim(); const level = val('acc-level');
+  if (!email) return;
+  const rights = level==='MANAGE' ? {can_read:true,can_write:true,can_ddl:true,can_admin:true}
+    : level==='EDIT' ? {can_read:true,can_write:true,can_ddl:true,can_admin:false}
+    : {can_read:true,can_write:false,can_ddl:false,can_admin:false};
+  try {
+    await api('/databases/'+App.dbAccessId+'/permissions', { method:'POST', body:{ email, ...rights } });
+    notify('success','Accès partagé', level+' accordé');
+    document.getElementById('acc-email').value='';
+    await App.loadDbPermissions();
+  } catch(e){ notify('error','Partage impossible', e.message); }
+};
+App.revokeDbAccess = async function(userId){
+  try {
+    await api('/databases/'+App.dbAccessId+'/permissions/'+userId, { method:'DELETE' });
+    await App.loadDbPermissions();
+  } catch(e){ notify('error','Retrait impossible', e.message); }
+};
+
+/* ============================================================
+   WORKSPACE
+============================================================ */
+App.openDb = function(id){ App.dbId = id; App.route='workspace'; App.loadWorkspace(); };
+App.loadWorkspace = async function(){
+  render();
+  try {
+    App.db = await api('/databases/'+App.dbId);
+    App.documentVersion = App.db.document_version;
+    App.tables = await api('/tables/'+App.dbId+'?include_archived=true');
+    App.currentTable = App.tables.length ? App.tables[0] : null;
+    await App.loadTable();
+  } catch(e){ notify('error','Erreur base', e.message); }
+  render();
+};
+App.loadTable = async function(){
+  if (!App.currentTable){ App.columns=[]; App.rows=[]; App.xmlCode=''; App.sqlCode=''; return; }
+  const t = App.currentTable;
+  App.columns = await api('/columns/'+t.id+'?include_archived=true');
+  App.page = 1;
+  await App.loadRows();
+  App.xmlCode = ''; App.sqlCode = '';
+  try {
+    const xres = await api('/export/table-xml/'+t.id);
+    App.xmlCode = xres.xml || '';
+    if (xres.document_version != null) App.documentVersion = xres.document_version;
+  } catch(e){ App.xmlError = e.message; App.xmlCode=''; }
+  try {
+    const sres = await api('/export/table-sql/'+t.id);
+    App.sqlCode = sres.sql || '-- Aucun SQL';
+  } catch(e){ App.sqlCode = '-- Erreur génération SQL'; }
+};
+App.loadRows = async function(){
+  const t = App.currentTable; if(!t) return;
+  const qs = new URLSearchParams({ limit:String(App.pageSize), offset:String((App.page-1)*App.pageSize) });
+  if (App.rowSearch) qs.set('search', App.rowSearch);
+  if (App.rowSort) qs.set('sort', App.rowSort);
+  if (App.rowOrder) qs.set('order', App.rowOrder);
+  try {
+    const res = await api('/tables/'+t.id+'/rows?'+qs.toString());
+    App.rows = res.rows || []; App.rowsTotal = res.total || 0;
+  } catch(e){ App.rows = []; App.rowsTotal = 0; App.rowsError = e.message; }
+};
+App.selectTable = function(id){
+  App.currentTable = App.tables.find(t=>t.id===id) || null;
+  App.tab='structure';
+  App.loadTable().then(()=>render());
+};
+
+function tableAccess(){
+  const t = App.currentTable;
+  return (t && t.access) || (App.db && App.db.access) || {};
+}
+function renderWorkspace(){
+  const d = App.db, t = App.currentTable;
+  const dbAccess = d ? d.access : {};
+  const ta = tableAccess();
+  const canWriteRows = !!ta.can_write;
+  const canEditStructure = !!ta.can_ddl;
+  const canManage = !!ta.can_admin;
+  const unlocked = App.unlocked.indexOf(String(t && t.id)) !== -1;
+  const canEditXml = canManage && (!t || !t.is_protected || unlocked);
+  const pk = App.columns.find(c=>c.primary_key);
+
+  // Liste des tables
+  let tableList = '';
+  if (App.tables.length===0){
+    tableList = '<div class="empty-state" style="padding:20px"><div class="es-title" style="font-size:12px">Aucune table</div></div>';
+  } else {
+    tableList = App.tables.map(tb => {
+      const act = t && tb.id===t.id;
+      const un = !tb.is_protected || App.unlocked.indexOf(String(tb.id))!==-1;
+      return '<a class="ws-table-item '+(act?'active':'')+'" onclick="App.selectTable('+tb.id+')">'+IC.table+
+        '<span class="name-wrap"><span>'+esc(tb.name)+'</span>'+(tb.is_protected?'<span class="lock-ic '+(un?'unlocked':'')+'">'+(un?IC.unlock:IC.lock)+'</span>':'')+'</span>'+
+        (tb.status==='ARCHIVED'?'<span class="arch-tag">ARCH</span>':'')+
+        '<span class="count">'+(tb.columns_count||'')+'</span></a>';
+    }).join('');
+  }
+
+  // Colonnes
+  let colsRows = '';
+  if (App.columns.length===0){
+    colsRows = '<tr><td colspan="11"><div class="empty-state" style="padding:30px"><div class="es-title">Aucune colonne</div><div class="es-desc">Ajoutez votre première colonne.</div></div></td></tr>';
+  } else {
+    colsRows = App.columns.map(c =>
+      '<tr><td class="col-name">'+esc(c.name)+'</td>' +
+      '<td class="col-type">'+esc(c.type)+'</td>' +
+      '<td>'+esc(c.length)+'</td>' +
+      '<td>'+boolChip(c.nullable)+'</td>' +
+      '<td>'+(c.primary_key?'<span class="pk-tag">PK</span>':'<span class="chip no">—</span>')+'</td>' +
+      '<td>'+(c.foreign_key?'<span class="fk-tag" title="'+esc(c.references||'')+'">FK</span>':'<span class="chip no">—</span>')+'</td>' +
+      '<td>'+boolChip(c.unique)+'</td>' +
+      '<td>'+boolChip(c.auto_increment)+'</td>' +
+      '<td><span class="badge '+(c.status==='ARCHIVED'?'badge-gray':'badge-green')+'">'+(c.status||'ACTIVE')+'</span></td>' +
+      '<td style="font-size:11px;color:var(--text-tertiary)">'+esc(c.last_modified_by||'—')+'</td>' +
+      '<td><div class="row-actions">' +
+        '<button class="icon-btn sm" '+(canEditStructure?'':'disabled')+' onclick="App.editColumn('+c.id+')" title="Modifier">'+IC.edit+'</button>' +
+        '<button class="icon-btn sm danger" '+(canEditStructure?'':'disabled')+' onclick="App.deleteColumn('+c.id+')" title="Supprimer">'+IC.trash+'</button>' +
+      '</div></td></tr>').join('');
+  }
+
+  // Lignes
+  let rowsHtml = '';
+  if (App.columns.length===0){
+    rowsHtml = '<div class="empty-state" style="padding:40px"><div class="es-title">Aucune colonne définie</div><div class="es-desc">Créez d\'abord des colonnes dans l\'onglet Structure.</div></div>';
+  } else {
+    let bodyRows = '';
+    if (App.rows.length===0){
+      bodyRows = '<tr><td colspan="'+(App.columns.length+1)+'"><div class="empty-state" style="padding:30px"><div class="es-title">Aucune donnée</div><div class="es-desc">Ajoutez votre première ligne.</div>'+(canWriteRows?'<button class="btn btn-sm btn-primary" style="margin-top:10px" onclick="App.openRow(null)">'+IC.plus+'Ajouter une ligne</button>':'')+'</div></td></tr>';
+    } else {
+      bodyRows = App.rows.map(r =>
+        '<tr>'+App.columns.map(c=>{
+          const v = r.data[c.name];
+          return '<td style="font-family:var(--font-mono);font-size:12px">'+(v===null?'<span class="badge badge-gray">NULL</span>':v!==undefined?esc(String(v)):'<span style="color:var(--text-tertiary)">—</span>')+'</td>';
+        }).join('') +
+        '<td><div class="row-actions">' +
+          '<button class="icon-btn sm" '+(canWriteRows?'':'disabled')+' onclick="App.openRow('+r.id+')" title="Modifier">'+IC.edit+'</button>' +
+          '<button class="icon-btn sm danger" '+(canWriteRows?'':'disabled')+' onclick="App.deleteRow('+r.id+')" title="Supprimer">'+IC.trash+'</button>' +
+        '</div></td></tr>').join('');
+    }
+    rowsHtml =
+      '<div class="filters-bar" style="padding:10px 16px;border-bottom:1px solid var(--border)">' +
+        '<input class="form-input" placeholder="Rechercher dans les lignes..." value="'+esc(App.rowSearch)+'" onchange="App.rowSearch=this.value;App.page=1;App.loadRows().then(()=>render())"/>' +
+        '<select class="form-input" onchange="App.rowSort=this.value;App.page=1;App.loadRows().then(()=>render())"><option value="">Tri par défaut</option>' +
+          App.columns.map(c=>'<option '+(App.rowSort===c.name?'selected':'')+' value="'+esc(c.name)+'">'+esc(c.name)+'</option>').join('') +
+        '</select>' +
+        '<button class="btn btn-sm" '+(App.rowSort?'':'disabled')+' onclick="App.rowOrder=App.rowOrder===\'ASC\'?\'DESC\':\'ASC\';App.loadRows().then(()=>render())">'+esc(App.rowOrder)+'</button>' +
+        '<button class="btn btn-sm" onclick="App.loadRows().then(()=>render())">Actualiser</button>' +
+        (canWriteRows ? '<button class="btn btn-sm btn-primary" style="margin-left:auto" onclick="App.openRow(null)">'+IC.plus+'Ajouter une ligne</button>' : '') +
+      '</div>' +
+      (App.rowsError ? '<div class="danger-box" style="margin:12px">'+esc(App.rowsError)+'</div>' : '') +
+      '<div class="table-wrap" style="flex:1"><table class="cols-table"><thead><tr>' +
+        App.columns.map(c=>'<th>'+esc(c.name)+'</th>').join('') + '<th style="text-align:right">Actions</th>' +
+      '</tr></thead><tbody>'+bodyRows+'</tbody></table></div>' +
+      '<div class="filters-bar" style="padding:10px 16px;border-top:1px solid var(--border)">' +
+        '<span style="color:var(--text-secondary);font-size:12px">Page '+App.page+' · '+App.rowsTotal+' ligne(s)</span>' +
+        '<button class="btn btn-sm" '+(App.page<=1?'disabled':'')+' onclick="App.page--;App.loadRows().then(()=>render())">Précédent</button>' +
+        '<button class="btn btn-sm" '+(App.page*App.pageSize>=App.rowsTotal?'disabled':'')+' onclick="App.page++;App.loadRows().then(()=>render())">Suivant</button>' +
+      '</div>';
+  }
+
+  // Relations
+  const outgoing = App.columns.filter(c=>c.foreign_key && c.references);
+  let incoming = [];
+  Object.entries(App.relationColumns||{}).forEach(([tn,cols])=>{
+    (cols||[]).forEach(c=>{ if (c.references && c.references.startsWith((t?t.name:'')+'.')) incoming.push({tableName:tn, column:c}); });
+  });
+  const relationsHtml =
+    '<div style="padding:18px">' +
+      '<div class="rel-section-title">Table courante</div>' +
+      '<div class="rel-current-card"><div><div class="rel-current-name">'+(t?esc(t.name):'—')+'</div><div class="rel-current-sub">Clé primaire : '+(pk?esc(pk.name):'—')+' · '+App.columns.length+' colonne(s)</div></div></div>' +
+      '<div class="rel-section-title">Relations sortantes</div>' +
+      (outgoing.length===0 ? '<div class="empty-state" style="padding:20px"><div class="es-desc">Aucune clé étrangère sortante.</div></div>' :
+        '<div class="rel-list">'+outgoing.map(c=>'<div class="rel-row"><span class="fk-tag">FK</span><span class="rel-row-col">'+esc(c.name)+'</span><span style="color:var(--text-tertiary)">→</span><span class="rel-row-target">'+esc(c.references)+'</span></div>').join('')+'</div>') +
+      '<div class="rel-section-title">Relations entrantes</div>' +
+      (incoming.length===0 ? '<div class="empty-state" style="padding:20px"><div class="es-desc">Aucune autre table ne référence cette table.</div></div>' :
+        '<div class="rel-list">'+incoming.map(x=>'<div class="rel-row"><span class="pk-tag">FK</span><span class="rel-row-col">'+esc(x.tableName+'.'+x.column.name)+'</span><span style="color:var(--text-tertiary)">→</span><span class="rel-row-target">'+esc(x.column.references)+'</span></div>').join('')+'</div>') +
+    '</div>';
+
+  return '<div class="screen active" id="screen-workspace">' +
+    '<div style="display:flex;flex-direction:column;flex:1;min-width:0">' +
+      '<div class="ws-titlebar">' +
+        '<a class="back-btn" onclick="navigate(\'dashboard\')">'+IC.back+'Bases</a>' +
+        '<div class="ws-crumb">/ <b>'+(d?esc(d.name):'')+'</b> / <span>'+(t?esc(t.name):'—')+'</span></div>' +
+        '<span class="badge '+(d && d.status==='ARCHIVED'?'badge-gray':'badge-green')+'"><span class="badge-dot" style="background:'+(d && d.status==='ARCHIVED'?'#A0AEC0':'#22C55E')+'"></span>'+(d?d.status:'ACTIF')+'</span>' +
+        '<div class="ws-titlebar-right">' +
+          '<span class="badge badge-blue" title="Version XML '+App.documentVersion+'"><span class="badge-dot" style="background:#3B82F6"></span>XML synchronisé</span>' +
+          (canManage ? '<button class="btn btn-sm" onclick="App.openDbAccess('+App.dbId+')">'+IC.group+'Partage</button>' : '') +
+          (canManage ? '<button class="btn btn-sm" onclick="App.doExportProject('+App.dbId+')">'+IC.down+'Export complet</button>' : '') +
+          '<button class="btn btn-sm btn-primary" onclick="App.exportSqlDb()">'+IC.down+'Exporter SQL</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="ws-body">' +
+        '<aside class="ws-sidebar">' +
+          '<div class="ws-sidebar-head">Tables</div>' +
+          '<div class="ws-table-list">'+tableList+'</div>' +
+          '<div class="ws-sidebar-actions">' +
+            (dbAccess.can_ddl ? '<button class="btn btn-sm" onclick="App.openNewTable()">'+IC.plus+'Nouvelle table</button>' : '') +
+            (dbAccess.can_ddl ? '<button class="btn btn-sm" onclick="App.openWorkspaceImport()">'+IC.down+'Importer XML</button>' : '') +
+            '<button class="btn btn-sm" onclick="App.exportSqlDb()">'+IC.down+'Exporter SQL</button>' +
+          '</div>' +
+        '</aside>' +
+        '<main class="ws-main">' +
+          '<div class="db-overview">' +
+            '<span class="badge '+(d && d.scope==='COMMON'?'badge-warn':'badge-blue')+'">'+(d && d.scope==='COMMON'?'Base commune':'Base personnelle')+'</span>' +
+            '<span>Propriétaire : <b>'+(d?esc(d.owner_name||d.creator_name||'—'):'')+'</b></span>' +
+            '<span>Accès : <b>'+(dbAccess.level||'—')+'</b></span>' +
+            '<span>Version XML : <b class="mono">'+(App.documentVersion==null?'—':App.documentVersion)+'</b></span>' +
+            '<span class="dim">'+(d && d.description ? esc(d.description) : 'Aucune description')+'</span>' +
+          '</div>' +
+          '<div class="ws-main-head">' +
+            '<div class="ws-main-head-left">'+IC.table+
+              '<div><h2>'+(t?esc(t.name):'Aucune table')+(t && t.is_protected?'<span style="color:var(--warn);display:inline-flex;margin-left:6px">'+IC.lock+'</span>':'')+'</h2>' +
+              '<div class="sub">'+(t ? App.columns.length+' colonnes · '+App.rowsTotal+' lignes · clé primaire : '+(pk?esc(pk.name):'—')+' · statut : '+(t.status==='ARCHIVED'?'archivée':'active') : 'Sélectionnez une table')+'</div></div>' +
+            '</div>' +
+            '<div class="ws-main-actions">' +
+              '<button class="btn btn-sm" '+(canEditStructure?'':'disabled')+' onclick="App.openColumn(null)">'+IC.plus+'Ajouter une colonne</button>' +
+              '<button class="btn btn-sm" '+(canEditStructure?'':'disabled')+' onclick="App.toggleArchiveTable()">'+(t && t.status==='ARCHIVED'?'Restaurer':'Archiver')+'</button>' +
+              '<button class="btn btn-sm btn-danger" '+(canEditStructure?'':'disabled')+' onclick="App.deleteTable()">'+IC.trash+'Supprimer la table</button>' +
+              (t && canEditStructure && !t.is_protected ? '<button class="btn btn-sm" onclick="App.openProtect()">'+IC.lock+'Protéger</button>' : '') +
+              (t && canEditStructure && t.is_protected && unlocked ? '<button class="btn btn-sm" onclick="App.unprotect()">'+IC.unlock+'Ôter la protection</button>' : '') +
+              (t && canManage ? '<button class="btn btn-sm" onclick="App.openTableAccess()">'+IC.group+'Partage de la table</button>' : '') +
+            '</div>' +
+          '</div>' +
+          '<div class="tabs-row"><div class="tabs-seg">' +
+            '<button class="tab-btn '+(App.tab==='structure'?'active':'')+'" onclick="App.tab=\'structure\';render()">'+IC.table+'Structure</button>' +
+            '<button class="tab-btn '+(App.tab==='data'?'active':'')+'" onclick="App.tab=\'data\';render()">'+IC.db+'Données '+(App.rowsTotal>0?'('+App.rowsTotal+')':'')+'</button>' +
+            '<button class="tab-btn '+(App.tab==='relations'?'active':'')+'" onclick="App.tab=\'relations\';App.loadRelations().then(()=>render())">Relations</button>' +
+          '</div></div>' +
+          '<div class="tab-panel '+(App.tab==='structure'?'active':'')+'"><div class="table-wrap"><table class="cols-table"><thead><tr><th>Nom</th><th>Type</th><th>Longueur</th><th>Nullable</th><th>PK</th><th>FK</th><th>Unique</th><th>Auto Inc.</th><th>État</th><th>Modifié par</th><th style="text-align:right">Actions</th></tr></thead><tbody>'+colsRows+'</tbody></table></div></div>' +
+          '<div class="tab-panel '+(App.tab==='data'?'active':'')+'"><div class="data-tab-wrap">'+rowsHtml+'</div></div>' +
+          '<div class="tab-panel '+(App.tab==='relations'?'active':'')+'">'+relationsHtml+'</div>' +
+        '</main>' +
+        '<aside class="ws-right">' +
+          '<div class="code-pane">' +
+            '<div class="code-pane-head">'+IC.logo+'XML Source <span class="lang-badge">XML</span>' +
+              (App.xmlError ? '<span class="badge badge-red">Erreur XML</span>' : '') +
+              '<div class="code-pane-head-actions">' +
+                '<button class="icon-btn sm" onclick="App.copyText(App.xmlCode)" title="Copier">'+IC.copy+'</button>' +
+                '<button class="icon-btn sm" onclick="App.downloadText(App.xmlCode,\'table.xml\')" title="Télécharger">'+IC.down+'</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="code-pane-body"><textarea id="xml-editor" '+(canEditXml?'':'readonly')+' oninput="App.xmlCode=this.value"></textarea></div>' +
+            (App.xmlError ? '<div class="xml-error-bar">⚠ '+esc(String(App.xmlError).slice(0,200))+'</div>' : '') +
+          '</div>' +
+          '<div class="apply-row">' +
+            '<button class="btn btn-sm" onclick="App.convertXmlToSql()">Convertir XML → SQL</button>' +
+            '<button class="btn btn-sm btn-primary" '+(canEditXml?'':'disabled')+' onclick="App.applyXml()">Appliquer les modifications</button>' +
+            '<div class="apply-hint">POST /tables/{id}/sync-xml · personnel par utilisateur</div>' +
+          '</div>' +
+          '<div class="code-pane" style="flex:0 0 auto">' +
+            '<div class="code-pane-head">'+IC.db+'SQL généré <span class="lang-badge">SQL</span>' +
+              '<div class="code-pane-head-actions">' +
+                '<button class="icon-btn sm" onclick="App.convertSqlToXml()" title="SQL → XML">'+IC.arrow+'</button>' +
+                '<button class="icon-btn sm" onclick="App.copyText(App.sqlCode)" title="Copier">'+IC.copy+'</button>' +
+                '<button class="icon-btn sm" onclick="App.downloadText(App.sqlCode,\'table.sql\')" title="Télécharger">'+IC.down+'</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="code-pane-body" style="min-height:150px"><textarea id="sql-editor" oninput="App.sqlCode=this.value"></textarea></div>' +
+          '</div>' +
+        '</aside>' +
+      '</div>' +
+    '</div></div>';
+}
+
+function boolChip(v){ return v ? '<span class="chip yes">'+IC.check+'</span>' : '<span class="chip no">—</span>'; }
+
+/* --- Workspace : actions --- */
+App.exportSqlDb = async function(){
+  try { await apiBlob('/export/sql/'+App.dbId+'?download=true', (App.db?App.db.name:'database_'+App.dbId)+'.sql'); notify('success','Export SQL',''); }
+  catch(e){ notify('error','Erreur', e.message); }
+};
+App.openWorkspaceImport = function(){
+  openModal('<div class="modal-head"><h3>'+IC.down+'Importer un fichier XML</h3><button class="icon-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="modal-body"><p class="desc">Synchronise la base actuelle depuis un fichier XML (remplace le document, gère expected_version).</p>' +
+    '<div class="dropzone" id="ws-drop" onclick="document.getElementById(\'ws-file\').click()"><b>Cliquer</b> ou glisser .xml</div>' +
+    '<input type="file" id="ws-file" class="hidden" accept=".xml" onchange="App.syncFromFile(this.files[0])"/></div>' +
+    '<div class="modal-footer"><button class="btn" onclick="closeModal()">Annuler</button></div>');
+  const dz=document.getElementById('ws-drop');
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover')});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
+  dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');App.syncFromFile(e.dataTransfer.files[0])});
+};
+App.syncFromFile = async function(file){
+  if(!file) return;
+  const text = await file.text();
+  try {
+    const res = await api('/databases/'+App.dbId+'/sync-xml', { method:'POST', body:{ xml:text, expected_version: App.documentVersion } });
+    if (res && res.document_version != null) App.documentVersion = res.document_version;
+    closeModal(); notify('success','Import réussi','Base synchronisée');
+    await App.loadWorkspace();
+  } catch(e){
+    if (e.isConflict) openConflict();
+    else notify('error','Erreur import', e.message);
+  }
+};
+App.openNewTable = function(){
+  App.newTableForm = { name:'', withId:true, protected:false, key:'' };
+  openModal('<div class="modal-head"><h3>'+IC.table+'Nouvelle table</h3><button class="icon-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="modal-body">' +
+      '<div class="field-block"><label class="form-label">Nom de la table</label><input class="form-input" id="nt-name" placeholder="ex. commande"/></div>' +
+      '<div class="check-row"><label class="switch"><input type="checkbox" id="nt-id" checked/><span class="track"></span></label><label>Ajouter automatiquement une clé primaire "id"</label></div>' +
+      '<div class="check-row"><label class="switch"><input type="checkbox" id="nt-prot" onchange="document.getElementById(\'nt-key-box\').style.display=this.checked?\'block\':\'none\'"/><span class="track"></span></label><label>Table protégée</label></div>' +
+      '<div class="field-block" id="nt-key-box" style="display:none;margin-top:10px"><label class="form-label">Code de protection</label><input class="form-input mono" id="nt-key" placeholder="XML-9F4A-2C1B"/></div>' +
+    '</div>' +
+    '<div class="modal-footer"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="App.createTable()">Créer la table</button></div>');
+};
+App.createTable = async function(){
+  const name = val('nt-name').trim();
+  const protectedTable = document.getElementById('nt-prot').checked;
+  const key = val('nt-key').trim();
+  if (!name){ notify('error','Nom requis',''); return; }
+  if (protectedTable && !key){ notify('error','Code requis','Le backend ne génère pas le code de protection.'); return; }
+  try {
+    const table = await api('/tables', { method:'POST', body:{ name, database_id: App.dbId, is_protected: protectedTable, file_identifier: key || null, expected_version: App.documentVersion } });
+    let latest = await api('/databases/'+App.dbId);
+    if (protectedTable && key){ await api('/unlock-table', { method:'POST', body:{ table_id: table.id, key_identifier: key } }); App.unlocked.push(String(table.id)); }
+    if (document.getElementById('nt-id').checked){
+      await api('/columns', { method:'POST', body:{ name:'id', type:'INT', length:'11', nullable:false, primary_key:true, auto_increment:true, unique:false, foreign_key:false, index:false, table_id: table.id, expected_version: latest.document_version } });
+      latest = await api('/databases/'+App.dbId);
+    }
+    App.documentVersion = latest.document_version;
+    closeModal(); notify('success','Table créée','« '+name+' » ajoutée');
+    await App.loadWorkspace();
+  } catch(e){
+    if (e.isConflict) openConflict();
+    else notify('error','Erreur création', e.message);
+  }
+};
+App.deleteTable = function(){
+  const t = App.currentTable;
+  if (!t){ notify('error','Aucune table',''); return; }
+  if (!App.requireUnlocked()) return;
+  if (!window.confirm('Supprimer définitivement « '+t.name+' » ?')) return;
+  App.doDeleteTable();
+};
+App.doDeleteTable = async function(){
+  const t = App.currentTable;
+  try {
+    await api('/tables/'+t.id, { method:'DELETE', body:{}, headers: { 'If-Match': String(App.documentVersion) } });
+    notify('success','Table supprimée','');
+    await App.loadWorkspace();
+  } catch(e){
+    if (e.status===403) App.openUnlock();
+    else if (e.isConflict) openConflict();
+    else notify('error','Erreur', e.message);
+  }
+};
+App.toggleArchiveTable = async function(){
+  const t = App.currentTable;
+  if (!t || !App.requireUnlocked()) return;
+  try {
+    await api('/tables/'+t.id+'/'+(t.status==='ARCHIVED'?'restore':'archive'), { method:'POST', body:{} });
+    notify('success', t.status==='ARCHIVED'?'Restaurée':'Archivée','');
+    await App.loadWorkspace();
+  } catch(e){
+    if (e.status===403) App.openUnlock();
+    else notify('error','Erreur', e.message);
+  }
+};
+
+/* --- Colonnes (structure complète) --- */
+App.openColumn = function(colId){
+  const c = colId==null ? null : App.columns.find(x=>x.id===colId);
+  App.colForm = c ? {
+    name:c.name, type:c.type, length:c.length, default:c.default||'', nullable:c.nullable,
+    primary_key:c.primary_key, foreign_key:c.foreign_key, references:c.references||'',
+    unique:c.unique, auto_increment:c.auto_increment, index:c.index,
+    on_delete:c.on_delete||'NO ACTION', on_update:c.on_update||'NO ACTION', id:c.id
+  } : { name:'', type:'VARCHAR', length:'255', default:'', nullable:true, primary_key:false, foreign_key:false, references:'', unique:false, auto_increment:false, index:false, on_delete:'NO ACTION', on_update:'NO ACTION', id:null };
+  if (!App.requireUnlocked()) return;
+  const f = App.colForm;
+  const types = ['VARCHAR','CHAR','TEXT','CLOB','INT','INTEGER','BIGINT','SMALLINT','TINYINT','DECIMAL','NUMERIC','REAL','FLOAT','DOUBLE','BOOLEAN','BOOL','DATE','DATETIME','TIMESTAMP','TIME','BLOB','JSON'];
+  openModal('<div class="modal-head"><h3>'+IC.edit+(f.id?'Modifier':'Ajouter')+' une colonne</h3><button class="icon-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="modal-body">' +
+      '<div class="grid-2">' +
+        '<div class="field-block"><label class="form-label">Nom</label><input class="form-input" id="cf-name" value="'+esc(f.name)+'"/></div>' +
+        '<div class="field-block"><label class="form-label">Type</label><select class="form-input" id="cf-type">'+types.map(t=>'<option '+(f.type===t?'selected':'')+'>'+t+'</option>').join('')+'</select></div>' +
+      '</div>' +
+      '<div class="grid-2">' +
+        '<div class="field-block"><label class="form-label">Longueur</label><input class="form-input" id="cf-len" value="'+esc(f.length)+'"/></div>' +
+        '<div class="field-block"><label class="form-label">Valeur par défaut</label><input class="form-input" id="cf-def" value="'+esc(f.default)+'" placeholder="vide = aucun défaut"/></div>' +
+      '</div>' +
+      '<div class="grid-2">' +
+        sw('cf-null','Nullable',f.nullable) + sw('cf-unique','Unique',f.unique) +
+      '</div>' +
+      '<div class="grid-2">' +
+        sw('cf-pk','Clé primaire',f.primary_key) + sw('cf-ai','Auto-incrément',f.auto_increment) +
+      '</div>' +
+      '<div class="grid-2">' +
+        sw('cf-idx','Index',f.index) + sw('cf-fk','Clé étrangère',f.foreign_key) +
+      '</div>' +
+      '<div id="cf-fk-box" style="'+(f.foreign_key?'':'display:none')+'">' +
+        '<div class="grid-2">' +
+          '<div class="field-block"><label class="form-label">Référence (table.colonne)</label><input class="form-input mono" id="cf-ref" value="'+esc(f.references)+'" placeholder="ex. client.id"/></div>' +
+          '<div class="field-block"><label class="form-label">ON DELETE</label><select class="form-input" id="cf-od">'+fkActions(f.on_delete)+'</select></div>' +
+        '</div>' +
+        '<div class="field-block"><label class="form-label">ON UPDATE</label><select class="form-input" id="cf-ou">'+fkActions(f.on_update)+'</select></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="modal-footer"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="App.saveColumn()">Enregistrer</button></div>', true);
+  document.getElementById('cf-fk').querySelector('input').addEventListener('change', function(){
+    document.getElementById('cf-fk-box').style.display = this.checked ? 'block' : 'none';
+  });
+};
+function sw(id,label,checked){ return '<div class="check-row"><label class="switch"><input type="checkbox" id="'+id+'" '+(checked?'checked':'')+'/><span class="track"></span></label><label>'+label+'</label></div>'; }
+function fkActions(cur){
+  return ['NO ACTION','CASCADE','SET NULL','RESTRICT'].map(a=>'<option '+(cur===a?'selected':'')+'>'+a+'</option>').join('');
+}
+App.saveColumn = async function(){
+  const t = App.currentTable;
+  const fk = document.getElementById('cf-fk').querySelector('input').checked;
+  const payload = {
+    name: val('cf-name').trim(),
+    type: val('cf-type'),
+    length: val('cf-len') || '-',
+    nullable: document.getElementById('cf-null').querySelector('input').checked,
+    primary_key: document.getElementById('cf-pk').querySelector('input').checked,
+    foreign_key: fk,
+    references: fk ? (val('cf-ref') || null) : null,
+    unique: document.getElementById('cf-unique').querySelector('input').checked,
+    auto_increment: document.getElementById('cf-ai').querySelector('input').checked,
+    index: document.getElementById('cf-idx').querySelector('input').checked,
+    on_delete: fk ? val('cf-od') : 'NO ACTION',
+    on_update: fk ? val('cf-ou') : 'NO ACTION',
+    default: val('cf-def')==='' ? null : val('cf-def'),
+    table_id: t.id
+  };
+  try {
+    if (App.colForm && App.colForm.id){
+      await api('/columns/'+App.colForm.id, { method:'PUT', body:{ ...payload, expected_version: App.documentVersion } });
+      notify('success','Colonne mise à jour','');
+    } else {
+      await api('/columns', { method:'POST', body:{ ...payload, expected_version: App.documentVersion } });
+      notify('success','Colonne créée','');
+    }
+    closeModal(); await App.loadWorkspace();
+  } catch(e){
+    if (e.status===403) App.openUnlock();
+    else if (e.isConflict) openConflict();
+    else notify('error','Erreur colonne', e.message);
+  }
+};
+App.editColumn = function(id){ App.openColumn(id); };
+App.deleteColumn = async function(col){
+  if (!App.requireUnlocked()) return;
+  if (!window.confirm('Supprimer colonne « '+col.name+' » ?')) return;
+  try {
+    await api('/columns/'+col.id, { method:'DELETE', body:{}, headers:{ 'If-Match': String(App.documentVersion) } });
+    notify('success','Colonne supprimée','');
+    await App.loadWorkspace();
+  } catch(e){
+    if (e.status===403) App.openUnlock();
+    else if (e.isConflict) openConflict();
+    else notify('error','Erreur', e.message);
+  }
+};
+
+/* --- Lignes --- */
+App.openRow = function(rowId){
+  const t = App.currentTable;
+  if (!t || !App.requireUnlocked()) return;
+  const row = rowId==null ? null : App.rows.find(r=>r.id===rowId);
+  App.rowForm = {};
+  App.columns.forEach(c=>{ App.rowForm[c.name] = row ? (row.data[c.name]!==undefined?row.data[c.name]:'') : ''; });
+  openModal('<div class="modal-head"><h3>'+(row?'Modifier la ligne':'Ajouter une ligne')+'</h3><button class="icon-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="modal-body" id="row-form-body">' +
+      App.columns.map(c=>{
+        const v = App.rowForm[c.name];
+        return '<div class="field-block"><label class="form-label">'+esc(c.name)+' <span style="color:var(--text-tertiary);font-weight:400">('+esc(c.type)+')</span></label>' +
+          '<div style="display:flex;gap:8px">' +
+          '<input class="form-input" id="rf-'+esc(c.name)+'" value="'+(v===null?'':esc(String(v)))+'" '+(v===null?'disabled':'')+' oninput="App.rowForm[this.dataset.col]=this.value" data-col="'+esc(c.name)+'" placeholder="'+(c.default||'')+'"/>' +
+          (c.nullable ? '<button class="btn btn-sm" onclick="App.toggleNull(\''+esc(c.name)+'\')">NULL</button>' : '') +
+          '</div></div>';
+      }).join('') +
+    '</div>' +
+    '<div class="modal-footer"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="App.saveRow('+(row?row.id:'null')+')">Enregistrer</button></div>', true);
+};
+App.toggleNull = function(colName){
+  const cur = App.rowForm[colName];
+  App.rowForm[colName] = (cur === null) ? '' : null;
+  const input = document.getElementById('rf-'+colName);
+  if (input){
+    input.value = '';
+    input.disabled = App.rowForm[colName] === null;
+  }
+};
+App.saveRow = async function(rowId){
+  const t = App.currentTable;
+  const payload = {};
+  App.columns.forEach(c=>{
+    const v = App.rowForm[c.name];
+    if (v !== '' || (!c.auto_increment && c.default == null)) payload[c.name] = v;
+  });
+  try {
+    if (rowId == null) await api('/tables/'+t.id+'/rows', { method:'POST', body:{ data: payload, expected_version: App.documentVersion } });
+    else await api('/tables/'+t.id+'/rows/'+rowId, { method:'PUT', body:{ data: payload, expected_version: App.documentVersion } });
+    notify('success', rowId==null?'Ligne ajoutée':'Ligne modifiée','');
+    closeModal(); await App.loadWorkspace();
+  } catch(e){
+    if (e.status===403) App.openUnlock();
+    else if (e.isConflict) openConflict();
+    else notify('error','Erreur ligne', e.message);
+  }
+};
+App.deleteRow = async function(rowId){
+  const t = App.currentTable;
+  if (!App.requireUnlocked()) return;
+  if (!window.confirm('Supprimer ligne #'+rowId+' ?')) return;
+  try {
+    await api('/tables/'+t.id+'/rows/'+rowId, { method:'DELETE', headers:{ 'If-Match': String(App.documentVersion) } });
+    notify('success','Ligne supprimée','');
+    await App.loadWorkspace();
+  } catch(e){
+    if (e.status===403) App.openUnlock();
+    else if (e.isConflict) openConflict();
+    else notify('error','Erreur', e.message);
+  }
+};
+
+/* --- Relations --- */
+App.loadRelations = async function(){
+  App.relationColumns = {};
+  try {
+    for (const tb of App.tables){
+      App.relationColumns[tb.name] = await api('/columns/'+tb.id+'?include_archived=false');
+    }
+  } catch(e){}
+};
+
+/* --- Protection / déverrouillage --- */
+App.requireUnlocked = function(){
+  const t = App.currentTable;
+  if (t && t.is_protected && App.unlocked.indexOf(String(t.id))===-1){ App.openUnlock(); return false; }
+  return true;
+};
+App.openUnlock = function(){
+  const t = App.currentTable;
+  openModal('<div class="modal-head"><h3>'+IC.lock+'Table protégée</h3><button class="icon-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="modal-body">' +
+      '<div class="info-box">'+IC.info+'<span>Table <b style="color:#fff">'+esc(t?t.name:'')+'</b> protégée. Déverrouillage <b>personnel</b> (session utilisateur). Autres utilisateurs devront fournir la clé.</span></div>' +
+      '<div class="field-block"><label class="form-label">Clé de protection</label><input class="form-input mono" id="unlock-key" placeholder="XML-..."/></div>' +
+    '</div>' +
+    '<div class="modal-footer"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="App.unlock()">Déverrouiller pour moi</button></div>');
+};
+App.unlock = async function(){
+  const t = App.currentTable;
+  const key = val('unlock-key').trim();
+  if (!key){ notify('error','Clé requise',''); return; }
+  try {
+    await api('/unlock-table', { method:'POST', body:{ table_id: t.id, key_identifier: key } });
+    App.unlocked.push(String(t.id));
+    closeModal(); notify('success','Déverrouillée','Accès personnel (session)');
+    await App.loadTable(); render();
+  } catch(e){ notify('error','Clé invalide', e.message); }
+};
+App.openProtect = function(){
+  openModal('<div class="modal-head"><h3>'+IC.lock+'Protéger table</h3><button class="icon-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="modal-body"><div class="field-block"><label class="form-label">File Identifier</label><input class="form-input mono" id="protect-key" placeholder="XML-..."/></div></div>' +
+    '<div class="modal-footer"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="App.protect()">Protéger</button></div>');
+};
+App.protect = async function(){
+  const t = App.currentTable;
+  const key = val('protect-key').trim();
+  if (!key){ notify('error','Clé requise',''); return; }
+  try {
+    await api('/tables/'+t.id, { method:'PUT', body:{ is_protected:true, file_identifier:key, expected_version: App.documentVersion } });
+    closeModal(); notify('success','Protégée','« '+t.name+' » protégée');
+    await App.loadWorkspace();
+  } catch(e){
+    if (e.isConflict) openConflict();
+    else notify('error','Erreur', e.message);
+  }
+};
+App.unprotect = async function(){
+  const t = App.currentTable;
+  if (!window.confirm('Retirer la protection de « '+t.name+' » ?')) return;
+  try {
+    await api('/tables/'+t.id, { method:'PUT', body:{ is_protected:false, file_identifier:null, expected_version: App.documentVersion } });
+    notify('success','Protection retirée','');
+    await App.loadWorkspace();
+  } catch(e){
+    if (e.isConflict) openConflict();
+    else notify('error','Erreur', e.message);
+  }
+};
+
+/* --- Partage de table --- */
+App.openTableAccess = function(){
+  const t = App.currentTable;
+  App.tablePermissions = [];
+  openModal('<div class="modal-head"><h3>'+IC.group+'Partage de la table '+esc(t?t.name:'')+'</h3><button class="icon-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="modal-body">' +
+      '<p class="desc">Les droits de table sont <b>additifs</b> par rapport à ceux de la base : ils ne retirent jamais un droit. Un partage de table seul ne rend pas la base sélectionnable ; accordez au moins la lecture sur la base si nécessaire.</p>' +
+      '<div class="grid-2"><input class="form-input" id="tacc-email" type="email" placeholder="utilisateur@exemple.com"/><select class="form-input" id="tacc-level"><option>VIEW</option><option>EDIT</option><option>MANAGE</option></select></div>' +
+      '<button class="btn btn-primary" style="margin-top:12px" onclick="App.grantTableAccess()">Accorder</button>' +
+      '<div style="margin-top:18px" id="tacc-list"><span class="mini-spinner"></span> Chargement...</div>' +
+    '</div>' +
+    '<div class="modal-footer"><button class="btn" onclick="closeModal()">Fermer</button></div>', true);
+  App.loadTablePermissions();
+};
+App.loadTablePermissions = async function(){
+  const t = App.currentTable;
+  try { App.tablePermissions = await api('/tables/'+t.id+'/permissions'); } catch(e){ App.tablePermissions=[]; }
+  const el = document.getElementById('tacc-list');
+  if (!el) return;
+  el.innerHTML = App.tablePermissions.length===0 ? '<div class="empty-state" style="padding:20px"><div class="es-title">Aucun partage</div></div>'
+    : App.tablePermissions.map(p=>'<div class="rel-row"><span class="rel-row-col">'+esc(p.user_email||('User #'+p.user_id))+'</span><span class="badge badge-blue">'+levelBadge(p)+'</span><button class="icon-btn sm danger" style="margin-left:auto" onclick="App.revokeTableAccess('+p.user_id+')">✕</button></div>').join('');
+};
+App.grantTableAccess = async function(){
+  const t = App.currentTable;
+  const email = val('tacc-email').trim(); const level = val('tacc-level');
+  if (!email) return;
+  const rights = level==='MANAGE' ? {can_read:true,can_write:true,can_ddl:true,can_admin:true}
+    : level==='EDIT' ? {can_read:true,can_write:true,can_ddl:true,can_admin:false}
+    : {can_read:true,can_write:false,can_ddl:false,can_admin:false};
+  try {
+    await api('/tables/'+t.id+'/permissions', { method:'POST', body:{ email, ...rights } });
+    notify('success','Accès table partagé', level+' accordé');
+    document.getElementById('tacc-email').value='';
+    await App.loadTablePermissions();
+  } catch(e){ notify('error','Partage impossible', e.message); }
+};
+App.revokeTableAccess = async function(userId){
+  const t = App.currentTable;
+  try { await api('/tables/'+t.id+'/permissions/'+userId, { method:'DELETE' }); await App.loadTablePermissions(); }
+  catch(e){ notify('error','Retrait impossible', e.message); }
+};
+
+/* --- XML / SQL --- */
+App.convertXmlToSql = async function(){
+  try {
+    const res = await api('/convert/xml-to-sql', { method:'POST', body:{ xml: App.xmlCode, database_name: App.db ? App.db.name : null } });
+    App.sqlCode = res.sql;
+    render(); notify('success','Conversion','XML → SQL');
+  } catch(e){ notify('error','Erreur conversion', e.message); }
+};
+App.convertSqlToXml = async function(){
+  try {
+    const res = await api('/convert/sql-to-xml', { method:'POST', body:{ sql: App.sqlCode, database_name: App.db ? App.db.name : null } });
+    App.xmlCode = res.xml;
+    render(); notify('success','Conversion','SQL → XML');
+  } catch(e){ notify('error','Erreur', e.message); }
+};
+App.applyXml = async function(){
+  const t = App.currentTable;
+  if (!t || !App.requireUnlocked()) return;
+  try {
+    const res = await api('/tables/'+t.id+'/sync-xml', { method:'POST', body:{ xml: App.xmlCode, expected_version: App.documentVersion } });
+    if (res && res.sql) App.sqlCode = res.sql;
+    if (res && res.xml) App.xmlCode = res.xml;
+    if (res && res.document_version != null) App.documentVersion = res.document_version;
+    notify('success','Modifications appliquées','Version '+App.documentVersion+' synchronisée dans XML et SQLite');
+    await App.loadWorkspace();
+  } catch(e){
+    if (e.status===403) App.openUnlock();
+    else if (e.isConflict) openConflict();
+    else notify('error','Erreur sync', e.message);
+  }
+};
+App.copyText = async function(text){
+  try { await navigator.clipboard.writeText(text||''); notify('success','Copié',''); }
+  catch(e){ notify('error','Erreur','Copie impossible dans ce navigateur'); }
+};
+App.downloadText = function(content, filename){
+  const blob = new Blob([content||''], { type:'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  notify('success','Téléchargé', filename);
+};
+
+/* --- Conflit 409 --- */
+function openConflict(){
+  openModal('<div class="modal-head"><h3>Conflit de version</h3><button class="icon-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="modal-body">' +
+      '<div class="danger-box"><b>Cette base a été modifiée depuis votre dernière synchronisation.</b><br/>Vos changements n\'ont pas écrasé la version plus récente.</div>' +
+      '<p class="desc">Rechargez les données avant de recommencer, ou abandonnez vos modifications locales.</p>' +
+    '</div>' +
+    '<div class="modal-footer"><button class="btn" onclick="closeModal()">Abandonner</button><button class="btn btn-primary" onclick="closeModal();App.loadWorkspace()">Recharger la version récente</button></div>');
+}
+
+/* ============================================================
+   UTILISATEURS (ADMIN)
+============================================================ */
+App.loadUsers = async function(){
+  try { App.users = await api('/users?search=&include_inactive=true'); } catch(e){ App.users=[]; notify('error','Erreur',e.message); }
+  render();
+};
+function renderUsers(){
+  let rows = '';
+  if (!App.users) rows = '<tr><td colspan="6"><div class="skeleton" style="height:20px"></div></td></tr>';
+  else if (App.users.length===0) rows = '<tr><td colspan="6"><div class="empty-state"><div class="es-title">Aucun utilisateur</div></div></td></tr>';
+  else rows = App.users.map(u =>
+    '<tr>' +
+      '<td><div style="display:flex;align-items:center;gap:10px"><div class="avatar" style="width:28px;height:28px;font-size:11px">'+esc((u.full_name||'U').slice(0,2).toUpperCase())+'</div><span style="font-weight:600">'+esc(u.full_name)+'</span></div></td>' +
+      '<td class="mono" style="font-size:12px">'+esc(u.email)+'</td>' +
+      '<td><span class="badge '+(u.role==='admin'?'badge-warn':'badge-blue')+'">'+esc(String(u.role||'user').toUpperCase())+'</span></td>' +
+      '<td><span class="badge '+(u.is_active?'badge-green':'badge-red')+'"><span class="badge-dot" style="background:'+(u.is_active?'#22C55E':'#EF4444')+'"></span>'+(u.is_active?'ACTIF':'DÉSACTIVÉ')+'</span></td>' +
+      '<td class="date-cell">'+(u.last_login?new Date(u.last_login).toLocaleString('fr-FR'):'Jamais')+'</td>' +
+      '<td><div class="row-actions" style="justify-content:flex-start">' +
+        '<button class="icon-btn sm" title="Modifier" onclick="App.openUserEdit('+u.id+')">'+IC.edit+'</button>' +
+        '<button class="icon-btn sm" title="Réinitialiser le mot de passe" onclick="App.openUserReset('+u.id+')">'+IC.key+'</button>' +
+        '<button class="icon-btn sm" title="'+(u.is_active?'Désactiver':'Activer')+'" onclick="App.toggleUserActive('+u.id+')">'+(u.is_active?IC.err:IC.check)+'</button>' +
+        '<button class="icon-btn sm danger" title="Supprimer" onclick="App.deleteUser('+u.id+')">'+IC.trash+'</button>' +
+      '</div></td>' +
+    '</tr>').join('');
+  return '<div class="screen active" id="screen-users">' + sidebar('users') +
+    '<div class="dash-main">' +
+      '<div class="page-header"><a class="back-link" onclick="navigate(\'dashboard\')">'+IC.back+'Bases de données</a></div>' +
+      '<div class="dash-content">' +
+        '<div class="dash-head"><div><h1>Utilisateurs</h1><p>Gestion des comptes, rôles et permissions</p></div>' +
+        '<div class="dash-actions"><button class="btn btn-primary" onclick="App.openUserCreate()">'+IC.plus+'Nouvel utilisateur</button></div></div>' +
+        '<div class="info-box">'+IC.info+'<span>Les privilèges dépendent du rôle <b style="color:#fff">ADMIN</b> fourni par le backend. Le dernier administrateur actif est protégé côté Flask.</span></div>' +
+        '<div style="border:1px solid var(--border);border-radius:var(--radius);overflow:auto;background:var(--card)"><table class="audit-table"><thead><tr><th>Utilisateur</th><th>Email</th><th>Rôle</th><th>Statut</th><th>Dernière connexion</th><th>Actions</th></tr></thead><tbody>'+rows+'</tbody></table></div>' +
+      '</div>' +
+    '</div></div>';
+}
+App.openUserCreate = function(){
+  openModal('<div class="modal-head"><h3>'+IC.users+'Nouvel utilisateur</h3><button class="icon-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="modal-body">' +
+      '<div class="field-block"><label class="form-label">Nom complet</label><input class="form-input" id="u-name" placeholder="Jean Dupont"/></div>' +
+      '<div class="field-block"><label class="form-label">Email</label><input class="form-input" id="u-email" placeholder="jean@exemple.com"/></div>' +
+      '<div class="field-block"><label class="form-label">Mot de passe</label><input class="form-input" id="u-pass" type="password" placeholder="Min. 6 caractères"/></div>' +
+      '<div class="field-block"><label class="form-label">Rôle</label><select class="form-input" id="u-role"><option value="user">USER</option><option value="admin">ADMIN</option></select></div>' +
+      '<div class="check-row"><label class="switch"><input type="checkbox" id="u-active" checked/><span class="track"></span></label><label>Compte actif</label></div>' +
+    '</div>' +
+    '<div class="modal-footer"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="App.createUser()">Créer</button></div>');
+};
+App.createUser = async function(){
+  const full_name = val('u-name').trim(), email = val('u-email').trim(), password = val('u-pass');
+  if (!full_name || !email || !password){ notify('error','Champs requis',''); return; }
+  try {
+    await api('/users', { method:'POST', body:{ full_name, email, password, is_active: document.getElementById('u-active').checked, role: val('u-role') } });
+    closeModal(); notify('success','Utilisateur créé', email);
+    await App.loadUsers();
+  } catch(e){ notify('error','Erreur création', e.message); }
+};
+App.openUserEdit = function(id){
+  const u = App.users.find(x=>x.id===id);
+  openModal('<div class="modal-head"><h3>'+IC.edit+'Modifier utilisateur</h3><button class="icon-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="modal-body">' +
+      '<div class="field-block"><label class="form-label">Nom</label><div class="form-input" style="background:var(--bg-elevated);color:var(--text-secondary)">'+esc(u.full_name)+'</div></div>' +
+      '<div class="field-block"><label class="form-label">E-mail</label><div class="form-input" style="background:var(--bg-elevated);color:var(--text-secondary)">'+esc(u.email)+'</div></div>' +
+      '<div class="field-block"><label class="form-label">Rôle</label><select class="form-input" id="ue-role"><option value="user" '+(u.role!=='admin'?'selected':'')+'>USER</option><option value="admin" '+(u.role==='admin'?'selected':'')+'>ADMIN</option></select></div>' +
+    '</div>' +
+    '<div class="modal-footer"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="App.editUser('+u.id+')">Enregistrer</button></div>');
+};
+App.editUser = async function(id){
+  try {
+    await api('/users/'+id, { method:'PUT', body:{ role: val('ue-role') } });
+    closeModal(); notify('success','Modifié','');
+    await App.loadUsers();
+  } catch(e){ notify('error','Erreur', e.message); }
+};
+App.openUserReset = function(id){
+  const u = App.users.find(x=>x.id===id);
+  openModal('<div class="modal-head"><h3>'+IC.key+'Réinitialiser le mot de passe</h3><button class="icon-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="modal-body">' +
+      '<div class="info-box">'+IC.info+'<span>Le backend réinitialise le mot de passe de <b style="color:#fff">'+esc(u.email)+'</b>, révoque ses sessions et ses déverrouillages de tables.</span></div>' +
+      '<div class="field-block"><label class="form-label">Nouveau mot de passe</label><input class="form-input" id="ur-pass" type="password" placeholder="Min. 6 caractères"/></div>' +
+    '</div>' +
+    '<div class="modal-footer"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="App.resetUserPassword('+u.id+')">Réinitialiser</button></div>');
+};
+App.resetUserPassword = async function(id){
+  const pwd = val('ur-pass');
+  if (pwd.length < 6){ notify('error','Mot de passe trop court','Minimum 6 caractères'); return; }
+  try {
+    await api('/users/'+id+'/reset-password', { method:'POST', body:{ new_password: pwd } });
+    closeModal(); notify('success','Mot de passe réinitialisé','');
+    await App.loadUsers();
+  } catch(e){ notify('error','Erreur', e.message); }
+};
+App.toggleUserActive = async function(id){
+  try {
+    await api('/users/'+id+'/toggle-active', { method:'POST' });
+    notify('success','Statut modifié','');
+    await App.loadUsers();
+  } catch(e){ notify('error','Erreur', e.message); }
+};
+App.deleteUser = async function(id){
+  const u = App.users.find(x=>x.id===id);
+  if (!window.confirm('Supprimer définitivement '+u.email+' ?')) return;
+  try {
+    await api('/users/'+id, { method:'DELETE' });
+    notify('error','Supprimé', u.email);
+    await App.loadUsers();
+  } catch(e){ notify('error','Erreur', e.message); }
+};
+
+/* ============================================================
+   AUDIT (ADMIN)
+============================================================ */
+App.loadAudit = async function(){
+  try { App.audit = await api('/audit-logs?limit=200'); } catch(e){ App.audit=[]; notify('error','Erreur',e.message); }
+  render();
+};
+function auditBadge(action){
+  action = action || '';
+  if (action.startsWith('SUPPRESSION') || action.includes('ERREUR')) return 'badge-red';
+  if (action.startsWith('CONVERSION')) return 'badge-blue';
+  if (action === 'DECONNEXION') return 'badge-gray';
+  return 'badge-green';
+}
+function renderAudit(){
+  const filter = App.auditFilter || 'all';
+  const logs = (App.audit||[]).filter(a => filter==='all' || (a.action||'').toUpperCase().includes(filter.toUpperCase()));
+  let rows = '';
+  if (!App.audit) rows = '<tr><td colspan="6"><div class="skeleton" style="height:20px"></div></td></tr>';
+  else if (logs.length===0) rows = '<tr><td colspan="6"><div class="empty-state"><div class="es-title">Aucun log</div><div class="es-desc">Aucune entrée ne correspond à ce filtre.</div></div></td></tr>';
+  else rows = logs.map(a =>
+    '<tr><td class="date-cell">'+(a.timestamp?new Date(a.timestamp).toLocaleString('fr-FR'):a.created_at?new Date(a.created_at).toLocaleString('fr-FR'):'—')+'</td>' +
+    '<td>'+esc(a.user_name||'—')+'</td>' +
+    '<td><span class="badge '+auditBadge(a.action)+'">'+esc(a.action)+'</span></td>' +
+    '<td>'+esc(a.element_name||a.element_type||'—')+'</td>' +
+    '<td style="color:var(--text-secondary)">'+esc(a.description||'—')+'</td>' +
+    '<td class="ip-cell">'+esc(a.ip_address||'—')+'</td></tr>').join('');
+  return '<div class="screen active" id="screen-audit">'+sidebar('audit')+
+    '<div class="dash-main">' +
+      '<div class="page-header"><a class="back-link" onclick="navigate(\'dashboard\')">'+IC.back+'Bases de données</a></div>' +
+      '<div class="dash-content">' +
+        '<div class="dash-head"><div><h1>Audit</h1><p>Journal indépendant de toutes les actions du système</p></div>' +
+        '<div class="filters-bar"><select class="form-input" style="width:auto" onchange="App.auditFilter=this.value;render()"><option value="all">Toutes les actions</option><option value="CONNEXION">Connexion</option><option value="CREATION">Création</option><option value="SUPPRESSION">Suppression</option><option value="IMPORT">Import</option><option value="EXPORT">Export</option><option value="CONVERSION">Conversion</option><option value="ERREUR">Erreur</option></select><button class="btn btn-sm" onclick="App.loadAudit()">Actualiser</button></div></div>' +
+        '<div style="border:1px solid var(--border);border-radius:var(--radius);overflow:auto;background:var(--card)"><table class="audit-table"><thead><tr><th>Date</th><th>Utilisateur</th><th>Action</th><th>Élément</th><th>Description</th><th>IP</th></tr></thead><tbody>'+rows+'</tbody></table></div>' +
+      '</div>' +
+    '</div></div>';
+}
+
+/* ============================================================
+   HISTORIQUE (ADMIN)
+============================================================ */
+App.loadHistory = async function(){
+  try { App.history = await api('/history?limit=200'); } catch(e){ App.history=[]; notify('error','Erreur',e.message); }
+  render();
+};
+function renderHistory(){
+  const items = App.history || [];
+  if (!App.history){
+    return '<div class="screen active" id="screen-history">'+sidebar('history')+'<div class="dash-main"><div class="page-header"><a class="back-link" onclick="navigate(\'dashboard\')">'+IC.back+'Bases de données</a></div><div class="dash-content"><div class="skeleton" style="height:80px"></div></div></div></div>';
+  }
+  if (items.length===0){
+    return '<div class="screen active" id="screen-history">'+sidebar('history')+'<div class="dash-main"><div class="page-header"><a class="back-link" onclick="navigate(\'dashboard\')">'+IC.back+'Bases de données</a></div><div class="dash-content"><div class="dash-head"><div><h1>Historique</h1><p>Timeline des actions métier sur vos bases</p></div></div><div class="empty-state">'+IC.clock+'<div class="es-title">Aucun événement</div></div></div></div></div>';
+  }
+  const groups = {};
+  items.forEach(h=>{
+    const d = new Date(h.created_at||h.date||h.timestamp);
+    const today = new Date(); const yest = new Date(); yest.setDate(today.getDate()-1);
+    let label = d.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+    if (d.toDateString()===today.toDateString()) label="Aujourd'hui";
+    else if (d.toDateString()===yest.toDateString()) label='Hier';
+    (groups[label]=groups[label]||[]).push(h);
+  });
+  let html = '';
+  Object.entries(groups).forEach(([label,list])=>{
+    html += '<div class="tl-group-label">'+esc(label)+'</div>';
+    html += list.map(h=>{
+      const tb = h.element_type==='base'?'badge-blue':h.element_type==='table'?'badge-green':h.element_type==='colonne'?'badge-warn':'badge-gray';
+      const time = h.created_at ? new Date(h.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '';
+      return '<div class="tl-card"><span class="tl-dot"></span><div class="tl-body">' +
+        '<div class="tl-head"><span class="who">'+esc(h.user_name)+' '+esc(h.action_type)+' <b>'+esc(h.element_name)+'</b></span><span class="badge '+tb+'">'+esc(h.element_type)+'</span><span class="time">'+esc(time)+'</span></div>' +
+        '<div class="tl-desc">'+esc(h.description||'')+'</div>' +
+        '<div class="tl-meta-row">'+(h.database_id?'<span class="badge badge-blue">DB '+h.database_id+'</span>':'')+(h.table_id?'<span class="badge badge-gray">Table '+h.table_id+'</span>':'')+(h.ip_address?'<span class="mono">IP '+esc(h.ip_address)+'</span>':'')+'</div>' +
+        '</div></div>';
+    }).join('');
+  });
+  return '<div class="screen active" id="screen-history">'+sidebar('history')+
+    '<div class="dash-main">' +
+      '<div class="page-header"><a class="back-link" onclick="navigate(\'dashboard\')">'+IC.back+'Bases de données</a></div>' +
+      '<div class="dash-content">' +
+        '<div class="dash-head"><div><h1>Historique</h1><p>Timeline des actions métier effectuées sur vos bases</p></div><button class="btn btn-sm" onclick="App.loadHistory()">Actualiser</button></div>' +
+        html +
+      '</div>' +
+    '</div></div>';
+}
+
+/* ============================================================
+   API & TCP/IP (Settings)
+============================================================ */
+App.loadTcp = async function(){
+  App.tcp = { credentials:null, sessions:[], status:null, error:null };
+  try { App.tcp.status = await api('/tcp/status', { withAuth:false }); } catch(e){ App.tcp.error = e.message; }
+  try { App.tcp.credentials = await api('/tcp/credentials'); } catch(e){}
+  try { const s = await api('/tcp/sessions'); App.tcp.sessions = s.sessions || []; } catch(e){}
+  render();
+};
+function renderSettings(){
+  const tcp = App.tcp || {};
+  const cred = tcp.credentials;
+  let tcpHtml = '<div class="api-card"><span class="mini-spinner"></span> Chargement des informations TCP...</div>';
+  if (tcp.status){
+    tcpHtml = '<div class="api-card">' +
+      '<div class="info-box" style="margin-bottom:14px">'+(tcp.status.running?'<span style="display:flex;gap:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg></span>Serveur TCP '+(tcp.status.running?'actif':'indisponible')+' · '+esc(tcp.status.host||'—')+':'+esc(tcp.status.port)+' · '+(tcp.status.active_sessions||0)+' session(s)' : '<span>Serveur TCP indisponible</span>')+'</div>' +
+      '<div class="api-grid">' +
+        '<div><div class="api-field-label">Hôte</div><div class="api-field-value">'+esc(cred ? cred.tcp_host : tcp.status.host || '—')+'</div></div>' +
+        '<div><div class="api-field-label">Port</div><div class="api-field-value">'+esc(cred ? cred.tcp_port : tcp.status.port)+'</div></div>' +
+        '<div><div class="api-field-label">Utilisateur TCP</div><div class="api-field-value">'+esc(cred ? cred.tcp_username : '—')+'</div></div>' +
+        '<div><div class="api-field-label">État</div><div class="api-field-value">'+(cred ? (cred.is_active?'<span class="badge badge-green">ACTIF</span>':'<span class="badge badge-gray">INACTIF</span>') : '—')+'</div></div>' +
+      '</div>' +
+      (cred && tcp.plain_password ?
+        '<div class="danger-box" style="margin-top:14px"><b>Conservez ce mot de passe affiché une seule fois.</b><br/><span class="mono">'+esc(tcp.plain_password)+'</span></div>' : '') +
+      '<div class="field-block" style="margin-top:14px"><label class="form-label">Mot de passe XMLForge (pour régénérer un secret affichable)</label><div style="display:flex;gap:8px"><input class="form-input" id="tcp-pwd" type="password" placeholder="Mot de passe web actuel"/><button class="btn btn-primary" onclick="App.revealTcp()">Générer</button></div></div>' +
+      '<button class="btn btn-sm" style="margin-top:8px" onclick="App.regenerateTcp()">Régénérer sans confirmation</button>' +
+      '<div style="margin-top:16px"><label class="form-label">Exemple client Python fourni par XMLForge</label>' +
+      '<div class="tcp-box">from app.tcp import XMLForgeClient\n\nclient = XMLForgeClient(\''+esc(cred?cred.tcp_host:'127.0.0.1')+'\', '+esc(cred?cred.tcp_port:3307)+')\nclient.connect(\''+esc(cred?cred.tcp_username:'USER')+'\', \'YOUR_TCP_PASSWORD\', database=\'DATABASE_ID\')\nrows = client.select(\'your_table\')\nclient.disconnect()</div></div>' +
+      '<p style="font-size:12px;color:var(--text-secondary);margin-top:12px">L\'identifiant de base est l\'ID affiché dans l\'URL de l\'espace de travail (<span class="mono">/database/&lt;id&gt;</span>). Le mot de passe TCP est distinct du mot de passe web. Node.js et HTTP/cURL ne sont pas disponibles sur le port TCP.</p>' +
+      '<div style="margin-top:16px"><label class="form-label">Sessions TCP actives</label>' +
+        ((tcp.sessions||[]).length===0 ? '<div class="empty-state" style="padding:16px"><div class="es-desc">Aucune session active.</div></div>'
+          : (tcp.sessions||[]).map(s=>'<div class="rel-row"><span class="rel-row-col">'+esc(s.database||'Sans base')+'</span><span class="mono" style="color:var(--text-tertiary)">'+esc(s.connected_at||'')+'</span></div>').join('')) +
+      '</div>' +
+    '</div>';
+  }
+  const endpoints = [
+    ['POST','/api/register','Inscription (rôle USER par défaut)'],['POST','/api/login','Connexion (JWT)'],['GET','/api/me','Profil connecté'],['POST','/api/logout','Révocation du token'],
+    ['GET','/api/databases','Bases accessibles'],['POST','/api/databases','Création (PERSONAL/COMMON)'],['PUT','/api/databases/:id','Renommage / scope'],['DELETE','/api/databases/:id','Suppression (admin)'],
+    ['POST','/api/databases/:id/query','SQL SELECT/INSERT/UPDATE/DELETE'],['POST','/api/databases/:id/sync-xml','Synchronisation depuis XML'],
+    ['GET','/api/databases/:id/permissions','Partages de la base'],['POST','/api/databases/:id/permissions','Partager (VIEW/EDIT/MANAGE)'],
+    ['GET','/api/tables/:databaseId','Tables'],['POST','/api/tables','Création de table'],['PUT','/api/tables/:id','Modification'],['DELETE','/api/tables/:id','Suppression'],
+    ['GET','/api/tables/:id/permissions','Permissions de la table'],['POST','/api/tables/:id/permissions','Partager une table'],
+    ['GET','/api/tables/:id/rows','Lignes paginées'],['POST','/api/tables/:id/rows','Ajout de ligne'],['PUT','/api/tables/:id/rows/:rowId','Modification'],['DELETE','/api/tables/:id/rows/:rowId','Suppression'],
+    ['GET','/api/columns/:tableId','Colonnes'],['POST','/api/columns','Création'],['PUT','/api/columns/:id','Modification'],['DELETE','/api/columns/:id','Suppression'],
+    ['POST','/api/import/xml','Import XML'],['POST','/api/import/sql','Import SQL'],['POST','/api/import/project','Import projet'],
+    ['GET','/api/export/xml/:id','Export XML (admin)'],['GET','/api/export/sql/:id','Export SQL'],['GET','/api/export/project/:id','Export projet'],
+    ['POST','/api/convert/xml-to-sql','Conversion XML → SQL'],['POST','/api/convert/sql-to-xml','Conversion SQL → XML'],
+    ['POST','/api/unlock-table','Déverrouillage table'],['GET','/api/unlocks','Déverrouillages session'],
+    ['GET','/api/users','Utilisateurs (admin)'],['POST','/api/users/:id/reset-password','Reset mot de passe (admin)'],
+    ['GET','/api/history','Historique (admin)'],['GET','/api/audit-logs','Audit (admin)'],
+    ['GET','/api/tcp/status','Statut TCP (sans JWT)'],['GET','/api/tcp/credentials','Identifiants TCP'],['GET','/api/tcp/sessions','Sessions TCP'],
+    ['GET','/health','Santé backend (sans JWT)']
+  ];
+  return '<div class="screen active" id="screen-settings">'+sidebar('api')+
+    '<div class="dash-main">' +
+      '<div class="page-header"><a class="back-link" onclick="navigate(\'dashboard\')">'+IC.back+'Bases de données</a></div>' +
+      '<div class="dash-content">' +
+        '<div class="dash-head"><div><h1>API & connexions externes</h1><p>Permet à des applications externes de se connecter à XMLForge</p></div></div>' +
+        '<div class="rel-section-title">Connexion TCP/IP</div>' + tcpHtml +
+        '<div class="rel-section-title">Clés API</div>' +
+        '<div class="info-box">'+IC.info+'<span>Le backend actuel ne fournit pas de gestion de clés API. Aucun token fictif n\'est généré par le frontend.</span></div>' +
+        '<div class="rel-section-title">Endpoints — référence</div>' +
+        '<div class="endpoint-list">'+endpoints.map(([m,p,desc])=>
+          '<div class="endpoint-row"><span class="badge '+(m==='POST'?'badge-green':m==='PUT'?'badge-warn':m==='DELETE'?'badge-red':'badge-blue')+'">'+m+'</span><span>'+p+'</span><span class="dim">'+desc+'</span></div>').join('')+'</div>' +
+      '</div>' +
+    '</div></div>';
+}
+App.revealTcp = async function(){
+  const pwd = val('tcp-pwd');
+  if (!pwd){ notify('error','Mot de passe requis',''); return; }
+  try {
+    const res = await api('/tcp/credentials/show-password', { method:'POST', body:{ current_password: pwd } });
+    openModal('<div class="modal-head"><h3>'+IC.key+'Nouveau secret TCP</h3><button class="icon-btn" onclick="closeModal()">✕</button></div>' +
+      '<div class="modal-body"><div class="danger-box">Conservez ce mot de passe, il n\'est affiché qu\'une fois.</div>' +
+      '<div class="tcp-box">'+esc(res.password||'')+'</div></div>' +
+      '<div class="modal-footer"><button class="btn" onclick="closeModal()">Fermer</button></div>');
+    notify('success','Secret généré','');
+    await App.loadTcp();
+  } catch(e){ notify('error','Erreur', e.message); }
+};
+App.regenerateTcp = async function(){
+  if (!window.confirm('Régénérer le mot de passe TCP ? Les anciennes connexions ne pourront plus se réauthentifier.')) return;
+  try {
+    const res = await api('/tcp/credentials/regenerate', { method:'POST', body:{} });
+    openModal('<div class="modal-head"><h3>'+IC.key+'Nouveau secret TCP</h3><button class="icon-btn" onclick="closeModal()">✕</button></div>' +
+      '<div class="modal-body"><div class="danger-box">Conservez ce mot de passe, il n\'est affiché qu\'une fois.</div>' +
+      '<div class="tcp-box">'+esc((res.plain_password)||'')+'</div></div>' +
+      '<div class="modal-footer"><button class="btn" onclick="closeModal()">Fermer</button></div>');
+    await App.loadTcp();
+  } catch(e){ notify('error','Erreur', e.message); }
+};
+
+/* ============================================================
+   DÉVERROUILLAGES DE SESSION
+============================================================ */
+App.loadUnlocks = async function(){
+  try {
+    const unlocks = await api('/unlocks');
+    App.unlocked = (unlocks||[]).filter(u=>!u.is_expired).map(u=>String(u.table_id));
+  } catch(e){ App.unlocked = []; }
+};
+
+/* ============================================================
+   DÉMARRAGE
+============================================================ */
+boot();
+</script>
+</body>
+</html>

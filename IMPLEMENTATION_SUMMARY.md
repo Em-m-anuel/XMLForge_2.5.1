@@ -341,7 +341,7 @@ with connect('localhost', 3307, 'user@example.com', 'password') as c:
 
 ## 📞 Support
 
-- 📧 Email: support@xmlforge.io
+- 📧 Email: support@example.com
 - 🐛 Issues: GitHub
 - 💬 Discord: community
 

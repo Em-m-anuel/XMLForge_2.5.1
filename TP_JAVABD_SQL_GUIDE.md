@@ -5,8 +5,8 @@ Ce document contient les requêtes SQL pour interroger chaque table de la base d
 ## Configuration TCP
 - **Host**: 127.0.0.1
 - **Port**: 3307
-- **Username**: essoya@gmail.com
-- **Password**: 12345678
+- **Username**: <VOTRE_TCP_USERNAME>
+- **Password**: <VOTRE_TCP_PASSWORD>
 
 ---
 
@@ -91,7 +91,7 @@ SELECT * FROM etudiants WHERE classe_id = 1;
 
 -- Insérer un nouvel étudiant
 INSERT INTO etudiants (nom, prenom, email, telephone, mot_de_passe, role, classe_id, departement_id) 
-VALUES ('Dupont', 'Jean', 'jean.dupont@email.com', '0123456789', 'password123', 'etudiant', 1, 1);
+VALUES ('Dupont', 'Jean', 'jean.dupont@email.com', '0123456789', '<VOTRE_MOT_DE_PASSE>', 'etudiant', 1, 1);
 
 -- Mettre à jour un étudiant
 UPDATE etudiants SET choix_stage = 'Entreprise X' WHERE id = 1;

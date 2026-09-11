@@ -1,3 +1,5 @@
+> ⚠️ **DOCUMENT HISTORIQUE** — décrit l'ancien serveur TCP (pré-Phase 7). Voir `XMLFORGE_SERVER.md` et `XMLFORGE_PROTOCOL.md` pour l'état actuel. Conservé comme archive.
+
 # ✅ Implémentation Terminée - Serveur TCP/IP XMLForge
 
 ## 📋 Résumé du travail effectué
@@ -268,8 +270,8 @@ with open('export.json', 'w') as f:
 ```python
 from app.tcp import connect
 
-with connect('source_host', 3307, 'user', 'pass') as src:
-    with connect('target_host', 3307, 'user', 'pass') as tgt:
+with connect('source_host', 3307, 'user', '<VOTRE_MOT_DE_PASSE>') as src:
+    with connect('target_host', 3307, 'user', '<VOTRE_MOT_DE_PASSE>') as tgt:
         data = src.select('table')
         for row in data:
             tgt.insert('table', row)

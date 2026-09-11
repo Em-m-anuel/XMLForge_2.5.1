@@ -1,3 +1,5 @@
+> ⚠️ **DOCUMENT HISTORIQUE** — décrit l'ancien serveur TCP (pré-Phase 7). Voir `XMLFORGE_SERVER.md` et `XMLFORGE_CLIENT.md` pour l'état actuel. Conservé comme archive.
+
 # 🚀 Quick Start - Serveur TCP/IP XMLForge
 
 ## Installation ✅

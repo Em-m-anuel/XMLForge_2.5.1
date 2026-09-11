@@ -1,704 +1,406 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XMLForge TCP Server Tester</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .header {
-            text-align: center;
-            color: white;
-            margin-bottom: 40px;
-        }
-
-        .header h1 {
-            font-size: 32px;
-            margin-bottom: 10px;
-        }
-
-        .header p {
-            font-size: 16px;
-            opacity: 0.9;
-        }
-
-        .main-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-
-        .card {
-            background: white;
-            border-radius: 8px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-        }
-
-        .card h2 {
-            color: #667eea;
-            margin-bottom: 15px;
-            font-size: 20px;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 10px;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 5px;
-            font-size: 14px;
-        }
-
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-            font-family: 'Courier New', monospace;
-        }
-
-        .form-group textarea {
-            resize: vertical;
-            min-height: 100px;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .button-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        button {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            flex: 1;
-        }
-
-        .btn-primary {
-            background: #667eea;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #764ba2;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-        }
-
-        .btn-success {
-            background: #22c55e;
-            color: white;
-        }
-
-        .btn-success:hover {
-            background: #16a34a;
-        }
-
-        .btn-danger {
-            background: #ef4444;
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background: #dc2626;
-        }
-
-        .btn-secondary {
-            background: #f3f4f6;
-            color: #333;
-        }
-
-        .btn-secondary:hover {
-            background: #e5e7eb;
-        }
-
-        .alert {
-            padding: 12px 16px;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            display: none;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .alert.show {
-            display: flex;
-        }
-
-        .alert-success {
-            background-color: #dcfce7;
-            border-left: 4px solid #22c55e;
-            color: #166534;
-        }
-
-        .alert-error {
-            background-color: #fee2e2;
-            border-left: 4px solid #ef4444;
-            color: #7f1d1d;
-        }
-
-        .alert-info {
-            background-color: #e0f2fe;
-            border-left: 4px solid #0ea5e9;
-            color: #0c4a6e;
-        }
-
-        .response-box {
-            background: #f8f9fa;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            padding: 15px;
-            margin-top: 15px;
-            display: none;
-        }
-
-        .response-box.show {
-            display: block;
-        }
-
-        .response-box pre {
-            overflow-x: auto;
-            font-size: 12px;
-            line-height: 1.5;
-            color: #333;
-        }
-
-        .status-box {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 15px;
-            background: #f0fdf4;
-            border-radius: 4px;
-            margin-bottom: 15px;
-        }
-
-        .status-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-
-        .status-indicator.connected {
-            background: #22c55e;
-        }
-
-        .status-indicator.disconnected {
-            background: #ef4444;
-            animation: none;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        .tabs {
-            display: flex;
-            gap: 5px;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #eee;
-        }
-
-        .tab-button {
-            padding: 10px 15px;
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-weight: 600;
-            color: #999;
-            border-bottom: 3px solid transparent;
-            transition: all 0.2s;
-        }
-
-        .tab-button.active {
-            color: #667eea;
-            border-bottom-color: #667eea;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        .query-builder {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-
-        @media (max-width: 768px) {
-            .main-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .button-group {
-                flex-direction: column;
-            }
-
-            .query-builder {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(102, 126, 234, 0.3);
-            border-radius: 50%;
-            border-top-color: #667eea;
-            animation: spin 1s ease-in-out infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .examples {
-            background: #f0f9ff;
-            border-left: 4px solid #0ea5e9;
-            padding: 15px;
-            border-radius: 4px;
-            margin-top: 20px;
-        }
-
-        .examples h3 {
-            color: #0c4a6e;
-            margin-bottom: 10px;
-        }
-
-        .examples code {
-            display: block;
-            background: white;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 10px;
-            overflow-x: auto;
-            font-size: 12px;
-        }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>XMLForge — TCP Tester / Moteur XML</title>
+<style>
+:root{
+  --bg:#0F1117; --bg-elevated:#13161D; --sidebar:#171B22; --card:#1C212B;
+  --card-hover:#232A37; --border:#262C38; --border-soft:#20252F;
+  --accent:#3B82F6; --accent-soft:#3B82F615; --success:#22C55E; --success-soft:#22C55E18;
+  --danger:#EF4444; --danger-soft:#EF444418; --warn:#FFD86B; --warn-soft:#FFD86B12;
+  --text:#fff; --text-secondary:#A0AEC0; --text-tertiary:#5B6472;
+  --font-ui:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;
+  --radius:10px; --radius-sm:6px;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--font-ui);background:var(--bg);color:var(--text);min-height:100vh}
+header{display:flex;align-items:center;gap:12px;padding:18px 28px;border-bottom:1px solid var(--border-soft);background:var(--sidebar)}
+header .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(145deg,#3B82F6,#2563EB);display:flex;align-items:center;justify-content:center;font-weight:800}
+header h1{font-size:17px;margin:0}
+header p{margin:0;font-size:12px;color:var(--text-secondary)}
+.container{max-width:1280px;margin:0 auto;padding:24px;display:grid;grid-template-columns:320px 1fr;gap:20px;align-items:start}
+@media(max-width:900px){.container{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:18px}
+.card h2{margin:0 0 14px;font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+.field input,.field select,.field textarea{width:100%;background:#12151C;border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 11px;color:var(--text);font-size:13px;font-family:var(--font-mono);outline:none}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+textarea{resize:vertical;min-height:110px;line-height:1.6}
+.row{display:flex;gap:10px}
+.row .field{flex:1}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--card-hover);color:var(--text);font-size:13px;font-weight:600;cursor:pointer}
+.btn:hover{border-color:#333b4a}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-success{background:var(--success);border-color:var(--success);color:#fff}
+.btn-sm{padding:6px 11px;font-size:12px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:100px;font-size:11px;font-weight:600}
+.badge-blue{background:var(--accent-soft);color:#7CACFB}
+.badge-green{background:var(--success-soft);color:#5EE29A}
+.badge-red{background:var(--danger-soft);color:#FF8787}
+.badge-warn{background:var(--warn-soft);color:var(--warn)}
+.badge-dot{width:6px;height:6px;border-radius:50%}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:12px 0}
+.metric{background:var(--bg-elevated);border:1px solid var(--border-soft);border-radius:var(--radius-sm);padding:10px 12px}
+.metric .k{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-tertiary)}
+.metric .v{font-size:16px;font-weight:700;font-family:var(--font-mono);margin-top:3px}
+.metric .v small{font-size:11px;color:var(--text-tertiary);font-weight:400}
+.alert{padding:11px 14px;border-radius:var(--radius-sm);font-size:13px;margin:10px 0;display:none}
+.alert.show{display:block}
+.alert-error{background:var(--danger-soft);border:1px solid #EF444440;color:#FF8787}
+.alert-success{background:var(--success-soft);border:1px solid #22C55E35;color:#5EE29A}
+.alert-info{background:var(--accent-soft);border:1px solid #3B82F640;color:#B9D3FC}
+.result-box{background:#0B0D12;border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;overflow:auto;max-height:420px;font-family:var(--font-mono);font-size:12px;line-height:1.55;color:#C9D4E3}
+table.data{width:100%;border-collapse:collapse;font-size:12px;font-family:var(--font-mono)}
+table.data th{text-align:left;padding:7px 10px;color:var(--text-tertiary);font-size:10.5px;text-transform:uppercase;border-bottom:1px solid var(--border);position:sticky;top:0;background:#0B0D12}
+table.data td{padding:6px 10px;border-bottom:1px solid var(--border-soft);white-space:nowrap}
+.examples{background:var(--bg-elevated);border:1px solid var(--border-soft);border-radius:var(--radius-sm);padding:10px 12px;font-size:12px;color:var(--text-secondary)}
+.examples code{display:block;font-family:var(--font-mono);color:#7CACFB;margin:4px 0;cursor:pointer}
+.examples code:hover{text-decoration:underline}
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:900px){.compare-grid{grid-template-columns:1fr}}
+.muted{color:var(--text-tertiary);font-size:12px}
+pre.json{margin:0;white-space:pre-wrap;word-break:break-word}
+</style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <h1>🔗 XMLForge TCP Server Tester</h1>
-            <p>Interface de test pour le serveur TCP/IP XMLForge</p>
+<header>
+  <div class="mark">X</div>
+  <div>
+    <h1>XMLForge — TCP Tester</h1>
+    <p>Étude du moteur de données : SQLite (projection) vs moteur XML natif</p>
+  </div>
+</header>
+
+<div class="container">
+  <!-- ============ COLONNE GAUCHE : CONFIGURATION ============ -->
+  <div>
+    <div class="card">
+      <h2>⚙️ Connexion TCP/IP</h2>
+      <div class="field"><label>Hôte</label><input id="cfg-host" placeholder="127.0.0.1" /></div>
+      <div class="row">
+        <div class="field"><label>Port</label><input id="cfg-port" placeholder="3307" /></div>
+        <div class="field"><label>Moteur par défaut</label>
+          <select id="cfg-engine">
+            <option value="sqlite">sqlite (défaut)</option>
+            <option value="xml">xml (moteur natif)</option>
+            <option value="compare">compare</option>
+          </select>
         </div>
-
-        <!-- Main Content -->
-        <div class="main-grid">
-            <!-- Left Column -->
-            <div class="card">
-                <h2>⚙️ Statut et Configuration</h2>
-                
-                <div id="statusContainer">
-                    <div class="status-box">
-                        <div id="statusIndicator" class="status-indicator disconnected"></div>
-                        <div>
-                            <strong id="statusText">Vérification...</strong>
-                            <div id="statusDetails" style="font-size: 12px; color: #666;"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Configuration TCP</label>
-                    <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 13px; font-family: monospace;">
-                        <div>Host: <span id="configHost">-</span></div>
-                        <div>Port: <span id="configPort">-</span></div>
-                        <div>Username: <span id="configUser">-</span></div>
-                    </div>
-                </div>
-
-                <div class="button-group">
-                    <button class="btn-primary" onclick="testConnection()">Test Connexion</button>
-                </div>
-
-                <div class="examples">
-                    <h3>📚 Aide</h3>
-                    <p style="font-size: 13px; color: #666; margin-bottom: 10px;">
-                        Utilisez cet outil pour tester votre connexion au serveur TCP XMLForge.
-                        Les requêtes SQL standard fonctionnent (SELECT, INSERT, UPDATE, DELETE).
-                    </p>
-                </div>
-            </div>
-
-            <!-- Right Column -->
-            <div class="card">
-                <h2>📝 Éditeur de Requête</h2>
-                
-                <div id="alerts"></div>
-
-                <!-- Tabs -->
-                <div class="tabs">
-                    <button class="tab-button active" onclick="switchTab('query')">Requête brute</button>
-                    <button class="tab-button" onclick="switchTab('builder')">Builder</button>
-                </div>
-
-                <!-- Tab: Query -->
-                <div id="query-tab" class="tab-content active">
-                    <div class="form-group">
-                        <label>Requête SQL</label>
-                        <textarea id="queryInput" placeholder="SELECT * FROM users&#10;INSERT INTO users (name) VALUES ('John')&#10;UPDATE users SET status='active' WHERE id=1&#10;DELETE FROM users WHERE id=1"></textarea>
-                    </div>
-
-                    <div class="button-group">
-                        <button class="btn-success" onclick="executeQuery()">
-                            <span id="execBtn">Exécuter</span>
-                        </button>
-                        <button class="btn-secondary" onclick="clearQuery()">Effacer</button>
-                    </div>
-                </div>
-
-                <!-- Tab: Builder -->
-                <div id="builder-tab" class="tab-content">
-                    <div class="query-builder">
-                        <div>
-                            <div class="form-group">
-                                <label>Type de requête</label>
-                                <select id="queryType" onchange="updateBuilder()">
-                                    <option value="select">SELECT</option>
-                                    <option value="insert">INSERT</option>
-                                    <option value="update">UPDATE</option>
-                                    <option value="delete">DELETE</option>
-                                </select>
-                            </div>
-
-                            <div class="form-group">
-                                <label>Table</label>
-                                <input type="text" id="tableName" placeholder="users">
-                            </div>
-
-                            <div class="form-group" id="columnsDiv">
-                                <label>Colonnes</label>
-                                <input type="text" id="columns" placeholder="*" value="*">
-                            </div>
-                        </div>
-
-                        <div>
-                            <div class="form-group" id="whereDiv" style="display: none;">
-                                <label>WHERE</label>
-                                <input type="text" id="where" placeholder="id=1">
-                            </div>
-
-                            <div class="form-group" id="dataDiv" style="display: none;">
-                                <label>Données (JSON)</label>
-                                <textarea id="data" placeholder='{"name": "John", "email": "john@example.com"}' style="min-height: 80px;"></textarea>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="button-group">
-                        <button class="btn-success" onclick="executeBuiltQuery()">Exécuter</button>
-                        <button class="btn-secondary" onclick="buildQueryPreview()">Prévisualiser</button>
-                    </div>
-
-                    <div id="queryPreview" class="response-box" style="margin-top: 15px;">
-                        <pre id="previewText"></pre>
-                    </div>
-                </div>
-
-                <!-- Response -->
-                <div id="responseBox" class="response-box">
-                    <strong>Réponse:</strong>
-                    <pre id="responseContent"></pre>
-                </div>
-            </div>
-        </div>
+      </div>
+      <div class="field"><label>Utilisateur TCP</label><input id="cfg-username" placeholder="user@example.com" autocomplete="off" /></div>
+      <div class="field"><label>Mot de passe TCP</label><input id="cfg-password" type="password" autocomplete="off" /></div>
+      <div class="field"><label>Base (nom ou ID)</label><input id="cfg-database" placeholder="bibliotheque_engine_test" /></div>
+      <button class="btn btn-primary" id="btn-test" onclick="testConnection()">Tester la connexion</button>
+      <div id="conn-status"></div>
     </div>
 
-    <script>
-        const API_URL = '/api';
+    <div class="card">
+      <h2>📚 Exemples</h2>
+      <div class="examples">
+        <code onclick="fillQuery(this)">SELECT * FROM books LIMIT 10</code>
+        <code onclick="fillQuery(this)">SELECT title, price FROM books WHERE category_id = 1 ORDER BY price DESC</code>
+        <code onclick="fillQuery(this)">SELECT COUNT(*) FROM books</code>
+        <code onclick="fillQuery(this)">SELECT * FROM books WHERE title LIKE '%Fondation%'</code>
+        <code onclick="fillQuery(this)">INSERT INTO authors (name) VALUES ('Dupont')</code>
+        <code onclick="fillQuery(this)">UPDATE books SET stock = 5 WHERE id = 1</code>
+        <code onclick="fillQuery(this)">DELETE FROM loans WHERE id = 1</code>
+      </div>
+      <p class="muted" style="margin-top:10px">
+        <b>sqlite</b> : moteur actuel (projection SQLite). <b>xml</b> : moteur XML natif
+        (lecture/écriture directe sur le fichier XML). <b>compare</b> : exécute la
+        requête sur les deux moteurs et compare résultat, lignes et temps réels.
+      </p>
+    </div>
+  </div>
 
-        // ====================================================================
-        // Utilitaires
-        // ====================================================================
+  <!-- ============ COLONNE DROITE : REQUÊTES ============ -->
+  <div>
+    <div class="card">
+      <h2>📝 Requête SQL</h2>
+      <div class="field"><label>Requête</label><textarea id="query-input" placeholder="SELECT * FROM books WHERE category_id = 1"></textarea></div>
+      <div class="row" style="align-items:flex-end">
+        <div class="field" style="flex:1"><label>Moteur</label>
+          <select id="query-engine">
+            <option value="sqlite">sqlite</option>
+            <option value="xml">xml</option>
+            <option value="compare">compare</option>
+          </select>
+        </div>
+        <div class="field" style="max-width:110px"><label>Runs (bench)</label><input id="query-runs" type="number" min="1" max="100" value="10" /></div>
+        <button class="btn btn-success" onclick="runQuery()">Exécuter</button>
+        <button class="btn" onclick="runBenchmark()">Benchmark</button>
+        <button class="btn" onclick="runCompare()">Comparer SQLite ↔ XML</button>
+        <button class="btn" onclick="runSuite()">Suite de benchmark</button>
+        <button class="btn btn-sm" onclick="clearAll()">Effacer</button>
+      </div>
+    </div>
 
-        function showAlert(message, type = 'info') {
-            const alertsDiv = document.getElementById('alerts');
-            const alertDiv = document.createElement('div');
-            alertDiv.className = `alert alert-${type} show`;
-            alertDiv.innerHTML = `<span>${message}</span>`;
-            alertsDiv.innerHTML = '';
-            alertsDiv.appendChild(alertDiv);
+    <div id="metrics-card" class="card" style="display:none">
+      <h2>📊 Mesures (réelles)</h2>
+      <div class="metrics" id="metrics"></div>
+    </div>
 
-            if (type !== 'error') {
-                setTimeout(() => alertDiv.classList.remove('show'), 3000);
-            }
-        }
+    <div id="result-card" class="card" style="display:none">
+      <h2>📄 Résultat <span id="result-badge"></span></h2>
+      <div id="result-body"></div>
+    </div>
 
-        function showResponse(data, query) {
-            const responseBox = document.getElementById('responseBox');
-            const responseContent = document.getElementById('responseContent');
-            
-            responseContent.textContent = JSON.stringify(
-                { query, result: data },
-                null,
-                2
-            );
-            responseBox.classList.add('show');
-        }
+    <div id="compare-card" class="card" style="display:none">
+      <h2>🔁 Comparaison SQLite / moteur XML</h2>
+      <div id="compare-body"></div>
+    </div>
 
-        function switchTab(tab) {
-            // Masquer tous les tabs
-            document.querySelectorAll('.tab-content').forEach(el => {
-                el.classList.remove('active');
-            });
-            document.querySelectorAll('.tab-button').forEach(el => {
-                el.classList.remove('active');
-            });
+    <div id="bench-card" class="card" style="display:none">
+      <h2>⏱️ Benchmark</h2>
+      <div id="bench-body"></div>
+    </div>
 
-            // Afficher le tab sélectionné
-            document.getElementById(`${tab}-tab`).classList.add('active');
-            event.target.classList.add('active');
-        }
+    <div id="suite-card" class="card" style="display:none">
+      <h2>🧪 Suite de benchmark (SQLite vs XML)</h2>
+      <div id="suite-body"></div>
+    </div>
+  </div>
+</div>
 
-        // ====================================================================
-        // Configuration
-        // ====================================================================
+<script>
+const API = '/api';
 
-        async function loadConfiguration() {
-            try {
-                const response = await fetch(`${API_URL}/test-connection`, {
-                    method: 'POST'
-                });
-                const data = await response.json();
+function cfg() {
+  return {
+    host: val('cfg-host'),
+    port: val('cfg-port'),
+    username: val('cfg-username'),
+    password: val('cfg-password'),
+    database: val('cfg-database'),
+  };
+}
+function val(id){ const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+function alertBox(id, type, msg){
+  const el = document.getElementById(id);
+  el.className = 'alert alert-' + type + ' show';
+  el.textContent = msg;
+}
+function fillQuery(codeEl){
+  document.getElementById('query-input').value = codeEl.textContent;
+}
 
-                if (data.success) {
-                    // Mise à jour de l'interface
-                    document.getElementById('statusIndicator').className = 'status-indicator connected';
-                    document.getElementById('statusText').textContent = '✓ Connecté au serveur TCP';
-                    document.getElementById('statusDetails').textContent = `${data.config.host}:${data.config.port}`;
+async function loadConfig(){
+  try {
+    const r = await fetch(API + '/config');
+    const c = await r.json();
+    document.getElementById('cfg-host').value = c.host;
+    document.getElementById('cfg-port').value = c.port;
+    document.getElementById('cfg-username').value = c.username;
+    if (c.database) document.getElementById('cfg-database').value = c.database;
+  } catch(e){}
+}
 
-                    document.getElementById('configHost').textContent = data.config.host;
-                    document.getElementById('configPort').textContent = data.config.port;
-                    document.getElementById('configUser').textContent = data.config.username;
-                } else {
-                    document.getElementById('statusIndicator').className = 'status-indicator disconnected';
-                    document.getElementById('statusText').textContent = '✗ Erreur de connexion';
-                    document.getElementById('statusDetails').textContent = data.error;
-                    showAlert(`Erreur: ${data.error}`, 'error');
-                }
-            } catch (err) {
-                document.getElementById('statusIndicator').className = 'status-indicator disconnected';
-                document.getElementById('statusText').textContent = '✗ Erreur réseau';
-                showAlert('Erreur de connexion au serveur', 'error');
-            }
-        }
+async function post(path, body){
+  const r = await fetch(API + path, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(body),
+  });
+  return r.json();
+}
 
-        async function testConnection() {
-            const btn = event.target;
-            const originalText = btn.textContent;
-            btn.innerHTML = '<div class="loading"></div>';
-            btn.disabled = true;
+function setBusy(btn, busy, label){
+  if (busy){ btn.dataset.label = btn.textContent; btn.textContent = label + '…'; btn.disabled = true; }
+  else { btn.textContent = btn.dataset.label || btn.textContent; btn.disabled = false; }
+}
 
-            try {
-                const response = await fetch(`${API_URL}/test-connection`, {
-                    method: 'POST'
-                });
-                const data = await response.json();
+async function testConnection(){
+  const btn = document.getElementById('btn-test');
+  setBusy(btn, true, 'Connexion');
+  try {
+    const data = await post('/test-connection', cfg());
+    if (data.success){
+      alertBox('conn-status', 'success',
+        `✓ Connecté à ${data.server.host}:${data.server.port} (${data.connect_ms} ms)` +
+        (data.server.database_name ? ` · base « ${data.server.database_name} »` : ''));
+    } else {
+      alertBox('conn-status', 'error', '✗ ' + data.error);
+    }
+  } catch(e){ alertBox('conn-status', 'error', '✗ ' + e.message); }
+  finally { setBusy(btn, false); }
+}
 
-                if (data.success) {
-                    showAlert('✓ Connexion réussie!', 'success');
-                    loadConfiguration();
-                } else {
-                    showAlert(`✗ Erreur: ${data.error}`, 'error');
-                }
-            } catch (err) {
-                showAlert('✗ Erreur réseau', 'error');
-            } finally {
-                btn.textContent = originalText;
-                btn.disabled = false;
-            }
-        }
+function renderMetrics(metrics, engine){
+  const items = [
+    ['Moteur', metrics.engine || engine, ''],
+    ['Temps total', fmt(metrics.total_ms), 'ms (aller-retour client)'],
+    ['Connexion', fmt(metrics.connect_ms), 'ms (réseau)'],
+    ['Traitement serveur', metrics.server_ms != null ? fmt(metrics.server_ms) : '—', 'ms'],
+    ['Parsing SQL', metrics.parse_ms != null ? fmt(metrics.parse_ms) : '—', 'ms'],
+    ['Exécution', metrics.exec_ms != null ? fmt(metrics.exec_ms) : '—', 'ms'],
+    ['Lecture XML', metrics.read_xml_ms != null ? fmt(metrics.read_xml_ms) : '—', 'ms'],
+    ['Écriture XML', metrics.write_xml_ms != null ? fmt(metrics.write_xml_ms) : '—', 'ms'],
+    ['Lignes', metrics.rows != null ? metrics.rows : '—', ''],
+    ['Taille réponse', metrics.response_bytes != null ? metrics.response_bytes : '—', 'octets'],
+  ];
+  document.getElementById('metrics').innerHTML = items.map(([k,v,u]) =>
+    `<div class="metric"><div class="k">${k}</div><div class="v">${v} ${u ? `<small>${u}</small>` : ''}</div></div>`).join('');
+  document.getElementById('metrics-card').style.display = 'block';
+}
+function fmt(v){ return (typeof v === 'number') ? Math.round(v * 1000) / 1000 : v; }
 
-        // ====================================================================
-        // Requête brute
-        // ====================================================================
+function renderResult(result, engine, badge){
+  const card = document.getElementById('result-card');
+  const body = document.getElementById('result-body');
+  const badgeEl = document.getElementById('result-badge');
+  card.style.display = 'block';
+  badgeEl.innerHTML = '';
+  if (badge) badgeEl.appendChild(badgeElToEl(badge));
 
-        async function executeQuery() {
-            const query = document.getElementById('queryInput').value.trim();
+  if (result && Array.isArray(result.rows)){
+    if (result.rows.length === 0){
+      body.innerHTML = '<p class="muted">Aucune ligne retournée.</p>';
+      return;
+    }
+    const cols = Object.keys(result.rows[0]);
+    body.innerHTML = `<table class="data"><thead><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead>
+      <tbody>${result.rows.map(r=>`<tr>${cols.map(c=>`<td>${esc(fmtCell(r[c]))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  } else {
+    body.innerHTML = `<div class="result-box"><pre class="json">${esc(JSON.stringify(result, null, 2))}</pre></div>`;
+  }
+}
+function fmtCell(v){ return v === null ? 'NULL' : v; }
+function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function badgeElToEl(text){
+  const el = document.createElement('span');
+  el.className = 'badge badge-blue';
+  el.textContent = text;
+  return el;
+}
 
-            if (!query) {
-                showAlert('Veuillez entrer une requête', 'error');
-                return;
-            }
+async function runQuery(){
+  const query = document.getElementById('query-input').value.trim();
+  if (!query){ alertBox('conn-status','error','Veuillez saisir une requête'); return; }
+  const engine = document.getElementById('query-engine').value;
+  try {
+    const data = await post('/query', { query, engine, ...cfg() });
+    if (!data.success){
+      alertBox('conn-status','error','✗ ' + data.error);
+      document.getElementById('metrics-card').style.display = 'none';
+      document.getElementById('result-card').style.display = 'none';
+      return;
+    }
+    renderMetrics(data.metrics, engine);
+    renderResult(data.result, engine, engine);
+  } catch(e){ alertBox('conn-status','error','✗ ' + e.message); }
+}
 
-            const btn = event.target;
-            const originalText = btn.textContent;
-            btn.innerHTML = '<div class="loading"></div>';
-            btn.disabled = true;
+async function runBenchmark(){
+  const query = document.getElementById('query-input').value.trim();
+  if (!query){ alertBox('conn-status','error','Veuillez saisir une requête'); return; }
+  const engine = document.getElementById('query-engine').value;
+  const runs = document.getElementById('query-runs').value;
+  try {
+    const data = await post('/benchmark', { query, engine, runs, ...cfg() });
+    const card = document.getElementById('bench-card');
+    const body = document.getElementById('bench-body');
+    card.style.display = 'block';
+    if (!data.success){ body.innerHTML = `<div class="alert alert-error show">✗ ${esc(data.error)}</div>`; return; }
+    body.innerHTML = `
+      <div class="metrics">
+        <div class="metric"><div class="k">Moteur</div><div class="v">${esc(data.engine)}</div></div>
+        <div class="metric"><div class="k">Runs</div><div class="v">${data.runs}</div></div>
+        <div class="metric"><div class="k">Min</div><div class="v">${fmt(data.min_ms)} <small>ms</small></div></div>
+        <div class="metric"><div class="k">Max</div><div class="v">${fmt(data.max_ms)} <small>ms</small></div></div>
+        <div class="metric"><div class="k">Moyenne</div><div class="v">${fmt(data.avg_ms)} <small>ms</small></div></div>
+        <div class="metric"><div class="k">Médiane</div><div class="v">${fmt(data.median_ms)} <small>ms</small></div></div>
+      </div>
+      <div class="result-box"><pre class="json">${esc(JSON.stringify(data.per_run, null, 2))}</pre></div>`;
+  } catch(e){ alertBox('conn-status','error','✗ ' + e.message); }
+}
 
-            try {
-                const response = await fetch(`${API_URL}/query`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query })
-                });
-                const data = await response.json();
+async function runCompare(){
+  const query = document.getElementById('query-input').value.trim();
+  if (!query){ alertBox('conn-status','error','Veuillez saisir une requête'); return; }
+  try {
+    const data = await post('/compare', { query, ...cfg() });
+    const card = document.getElementById('compare-card');
+    const body = document.getElementById('compare-body');
+    card.style.display = 'block';
+    if (!data.success){ body.innerHTML = `<div class="alert alert-error show">✗ ${esc(data.error)}</div>`; return; }
+    const c = data.comparison;
+    const eqBadge = c.equivalent
+      ? '<span class="badge badge-green"><span class="badge-dot" style="background:#22C55E"></span>Résultats identiques</span>'
+      : '<span class="badge badge-red"><span class="badge-dot" style="background:#EF4444"></span>Résultats différents</span>';
+    body.innerHTML = `
+      <p style="margin:0 0 12px">${eqBadge} <span class="muted">· opération ${esc(c.operation)} sur « ${esc(c.table)} »</span></p>
+      <div class="compare-grid">
+        <div>
+          <h2 style="margin:0 0 8px;font-size:13px">SQLite (projection)</h2>
+          <div class="metrics">
+            <div class="metric"><div class="k">Lignes</div><div class="v">${c.sqlite.rows}</div></div>
+            <div class="metric"><div class="k">Temps</div><div class="v">${fmt(c.sqlite.metrics.total_ms)} <small>ms</small></div></div>
+          </div>
+        </div>
+        <div>
+          <h2 style="margin:0 0 8px;font-size:13px">Moteur XML natif</h2>
+          <div class="metrics">
+            <div class="metric"><div class="k">Lignes</div><div class="v">${c.xml.rows}</div></div>
+            <div class="metric"><div class="k">Temps total</div><div class="v">${fmt(c.xml.metrics.total_ms)} <small>ms</small></div></div>
+            <div class="metric"><div class="k">Lecture XML</div><div class="v">${fmt(c.xml.metrics.read_ms)} <small>ms</small></div></div>
+            <div class="metric"><div class="k">Écriture XML</div><div class="v">${fmt(c.xml.metrics.write_ms)} <small>ms</small></div></div>
+          </div>
+        </div>
+      </div>
+      ${c.diff ? `<div class="alert alert-error show">Différence détectée : ${esc(JSON.stringify(c.diff))}</div>` : ''}
+      <div class="result-box" style="margin-top:12px"><pre class="json">${esc(JSON.stringify(c, null, 2))}</pre></div>`;
+  } catch(e){ alertBox('conn-status','error','✗ ' + e.message); }
+}
 
-                if (data.success) {
-                    showAlert('✓ Requête exécutée avec succès', 'success');
-                    showResponse(data.result, data.query);
-                } else {
-                    showAlert(`✗ Erreur: ${data.error}`, 'error');
-                }
-            } catch (err) {
-                showAlert(`✗ Erreur: ${err.message}`, 'error');
-            } finally {
-                btn.textContent = originalText;
-                btn.disabled = false;
-            }
-        }
+async function runSuite(){
+  const runs = document.getElementById('query-runs').value;
+  const card = document.getElementById('suite-card');
+  const body = document.getElementById('suite-body');
+  card.style.display = 'block';
+  body.innerHTML = '<span class="mini-spinner" style="display:inline-block;width:13px;height:13px;border-radius:50%;border:2px solid #3B82F630;border-top-color:#3B82F6;animation:spin .7s linear infinite"></span> Benchmark en cours…';
+  try {
+    const data = await post('/benchmark-suite', { runs, ...cfg() });
+    if (!data.success){ body.innerHTML = `<div class="alert alert-error show">✗ ${esc(data.error)}</div>`; return; }
+    const fmtT = v => v == null ? '—' : Math.round(v*1000)/1000 + ' ms';
+    let html = `<p class="muted" style="margin:0 0 12px">${data.runs} itération(s) par requête. Écritures sur table temporaire <span class="mono">bench_scratch</span> (supprimée ensuite) — données réelles intactes.</p>`;
+    html += '<div class="result-box" style="overflow:auto"><table class="data"><thead><tr><th>Catégorie</th><th>Moteur</th><th>Min</th><th>Moyenne</th><th>Médiane</th><th>Max</th></tr></thead><tbody>';
+    for (const [label, engines] of Object.entries(data.read)) {
+      for (const engine of ['sqlite','xml']) {
+        const m = engines[engine];
+        if (m && m.error) html += `<tr><td>${esc(label)}</td><td>${engine}</td><td colspan="4" style="color:#FF8787">✗ ${esc(m.error)}</td></tr>`;
+        else if (m) html += `<tr><td>${esc(label)}</td><td>${engine}</td><td>${fmtT(m.min_ms)}</td><td>${fmtT(m.avg_ms)}</td><td>${fmtT(m.median_ms)}</td><td>${fmtT(m.max_ms)}</td></tr>`;
+      }
+    }
+    html += '</tbody></table></div>';
+    html += '<h2 style="margin:16px 0 10px;font-size:13px">Écritures (table de travail)</h2><div class="result-box" style="overflow:auto"><table class="data"><thead><tr><th>Moteur</th><th>Opération</th><th>Min</th><th>Moyenne</th><th>Médiane</th><th>Max</th></tr></thead><tbody>';
+    for (const engine of ['sqlite','xml']) {
+      const w = data.write && data.write[engine];
+      if (!w) continue;
+      for (const op of ['insert','update','delete']) {
+        const m = w[op];
+        html += `<tr><td>${engine}</td><td>${op}</td><td>${fmtT(m.min_ms)}</td><td>${fmtT(m.avg_ms)}</td><td>${fmtT(m.median_ms)}</td><td>${fmtT(m.max_ms)}</td></tr>`;
+      }
+    }
+    html += '</tbody></table></div>';
+    body.innerHTML = html;
+  } catch(e){ body.innerHTML = `<div class="alert alert-error show">✗ ${esc(e.message)}</div>`; }
+}
 
-        function clearQuery() {
-            document.getElementById('queryInput').value = '';
-            document.getElementById('responseBox').classList.remove('show');
-        }
+function clearAll(){
+  document.getElementById('result-card').style.display = 'none';
+  document.getElementById('metrics-card').style.display = 'none';
+  document.getElementById('compare-card').style.display = 'none';
+  document.getElementById('bench-card').style.display = 'none';
+  document.getElementById('suite-card').style.display = 'none';
+  document.getElementById('conn-status').className = 'alert';
+}
 
-        // ====================================================================
-        // Query Builder
-        // ====================================================================
-
-        function updateBuilder() {
-            const type = document.getElementById('queryType').value;
-            const whereDiv = document.getElementById('whereDiv');
-            const dataDiv = document.getElementById('dataDiv');
-            const columnsDiv = document.getElementById('columnsDiv');
-
-            whereDiv.style.display = 'none';
-            dataDiv.style.display = 'none';
-            columnsDiv.style.display = 'block';
-
-            switch (type) {
-                case 'select':
-                    columnsDiv.style.display = 'block';
-                    whereDiv.style.display = 'block';
-                    break;
-                case 'insert':
-                    columnsDiv.style.display = 'none';
-                    dataDiv.style.display = 'block';
-                    break;
-                case 'update':
-                    columnsDiv.style.display = 'none';
-                    dataDiv.style.display = 'block';
-                    whereDiv.style.display = 'block';
-                    break;
-                case 'delete':
-                    columnsDiv.style.display = 'none';
-                    whereDiv.style.display = 'block';
-                    break;
-            }
-        }
-
-        function buildQueryPreview() {
-            const type = document.getElementById('queryType').value;
-            const table = document.getElementById('tableName').value;
-
-            if (!table) {
-                showAlert('Veuillez entrer un nom de table', 'error');
-                return;
-            }
-
-            let query = '';
-
-            switch (type) {
-                case 'select': {
-                    const columns = document.getElementById('columns').value || '*';
-                    const where = document.getElementById('where').value;
-                    query = `SELECT ${columns} FROM ${table}`;
-                    if (where) query += ` WHERE ${where}`;
-                    break;
-                }
-                case 'insert': {
-                    const data = JSON.parse(document.getElementById('data').value || '{}');
-                    const cols = Object.keys(data).join(', ');
-                    const vals = Object.values(data).map(v => `'${v}'`).join(', ');
-                    query = `INSERT INTO ${table} (${cols}) VALUES (${vals})`;
-                    break;
-                }
-                case 'update': {
-                    const data = JSON.parse(document.getElementById('data').value || '{}');
-                    const set = Object.entries(data).map(([k, v]) => `${k}='${v}'`).join(', ');
-                    const where = document.getElementById('where').value;
-                    query = `UPDATE ${table} SET ${set} WHERE ${where}`;
-                    break;
-                }
-                case 'delete': {
-                    const where = document.getElementById('where').value;
-                    query = `DELETE FROM ${table} WHERE ${where}`;
-                    break;
-                }
-            }
-
-            document.getElementById('previewText').textContent = query;
-            document.getElementById('queryPreview').classList.add('show');
-        }
-
-        async function executeBuiltQuery() {
-            buildQueryPreview();
-            const query = document.getElementById('previewText').textContent;
-            document.getElementById('queryInput').value = query;
-
-            // Copier et exécuter la requête brute
-            setTimeout(() => {
-                document.getElementById('queryInput').focus();
-                executeQuery();
-            }, 100);
-        }
-
-        // ====================================================================
-        // Initialisation
-        // ====================================================================
-
-        document.addEventListener('DOMContentLoaded', () => {
-            loadConfiguration();
-        });
-    </script>
+document.addEventListener('DOMContentLoaded', loadConfig);
+</script>
 </body>
 </html>

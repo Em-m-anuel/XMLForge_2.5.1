@@ -1,9 +1,9 @@
 # XMLForge V4 - Dernière évolution fonctionnelle
 
-## 1. Administration (nyx@xmlforge.io uniquement)
+## 1. Administration (admin@example.com uniquement)
 
 ### Backend
-- Modèle `User` étendu: `is_active` bool, `last_login` datetime, `updated_at`, `is_admin()` → email.lower() == nyx@xmlforge.io
+- Modèle `User` étendu: `is_active` bool, `last_login` datetime, `updated_at`, `is_admin()` → email.lower() == admin@example.com
 - Décorateur `admin_required` dans `app/auth/decorators.py` → vérifie JWT + is_admin, retourne 403 sinon
 - Routes protégées:
   - `GET /history` + `GET /audit-logs` + `GET /audit` → `@admin_required`
@@ -11,13 +11,13 @@
 - Logout (`POST /logout`) → clear `TableUnlock` personnels via `UnlockService.clear_user_unlocks(user_id)`
 
 ### Frontend
-- `AuthContext` : `isAdmin` = email == nyx@xmlforge.io ou is_admin flag, `isPrivileged` alias
+- `AuthContext` : `isAdmin` = email == admin@example.com ou is_admin flag, `isPrivileged` alias
 - `Sidebar` : affiche Historique, Audit, Utilisateurs uniquement si `isAdmin`
 - `AdminRoute` : guard frontend, affiche page 🔒 Accès refusé si non admin, sinon children
 - `App.jsx` : `/history`, `/audit`, `/users` wrappés dans `<ProtectedRoute><AdminRoute>`
 
 ### Erreur autorisation
-- Backend: 403 `{success:false, message:"Accès refusé: privilèges administrateur requis (nyx@xmlforge.io uniquement)"}`
+- Backend: 403 `{success:false, message:"Accès refusé: privilèges administrateur requis (admin@example.com uniquement)"}`
 - Frontend: AdminRoute rend page avec bouton Retour Dashboard
 
 ## 2. Page Users (admin)
@@ -175,7 +175,7 @@
 ## Tests manuels recommandés
 
 1. Créer compte test@test.com → login → vérifier Sidebar n'affiche pas Historique/Audit/Users → essayer /history directement → 403 + page Accès refusé
-2. Login nyx@xmlforge.io → voir Historique/Audit/Users dans Sidebar → Users: créer user, search, edit, reset pwd, toggle active, delete
+2. Login admin@example.com → voir Historique/Audit/Users dans Sidebar → Users: créer user, search, edit, reset pwd, toggle active, delete
 3. Dashboard: créer base, tables, colonnes
 4. Workspace: sélectionner table → voir XML dans Monaco (coloration, numéros, folding) → modifier XML invalide → badge rouge Erreur XML → corriger → badge disparaît
 5. Table protégée: créer table avec protégée + file_identifier XML-TEST-123 → autre user test@test.com tente modifier → modal unlock → saisir clé → déverrouillé uniquement pour lui → se déconnecter → reconnecter → protection réactivée
