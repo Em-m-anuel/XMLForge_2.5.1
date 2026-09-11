@@ -3,6 +3,7 @@
 # =========================
 xmlforge-react/node_modules/
 xmlforge-react/dist/
+xmlforge-react/test-results/
 xmlforge-react/.env
 
 # =========================
@@ -15,6 +16,13 @@ backend/.pytest_cache/
 backend/instance/
 backend/.env
 backend/xmlforge.db
+backend/data/control/
+backend/data/xml/
+backend/data/projections/
+backend/uploads/*
+backend/exports/*
+!backend/uploads/.gitkeep
+!backend/exports/.gitkeep
 
 # Python
 *.pyc

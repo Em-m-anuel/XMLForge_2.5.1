@@ -26,7 +26,7 @@ def export_project(database_id):
             ip_address=get_ip()
         )
         if err:
-            return error_response(err, 404)
+            return error_response(err, 403 if 'Permission' in err else 404)
 
         if request.args.get('download') == 'true':
             return Response(

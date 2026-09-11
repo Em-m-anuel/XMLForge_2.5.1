@@ -3,7 +3,6 @@ SocketIO helpers - émission d'événements temps réel
 Prêt pour collaboration, sans modifier API REST
 Events : nouvelle base, nouvelle table, nouvelle colonne, modification, suppression, import XML, export SQL
 """
-from flask import current_app
 
 def emit_event(event_name, payload):
     """

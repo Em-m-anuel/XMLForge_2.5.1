@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Control Plane XML — security.xsd (Phase 6B)
+  Document : security.xml (roles, users, tcp_credentials).
+  - revoked_tokens et unlocks ne figurent PAS ici (décision : mémoire uniquement).
+  - Les mots de passe sont des HASHES bcrypt ; jamais de clair.
+  - Les contraintes inter-documents (ex. catalog → users) sont vérifiées par la
+    couche métier (XmlControlPlaneService), jamais par XSD.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+
+  <xs:simpleType name="booleanString">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="true"/><xs:enumeration value="false"/>
+      <xs:enumeration value="1"/><xs:enumeration value="0"/>
+      <xs:enumeration value="yes"/><xs:enumeration value="no"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="portType">
+    <xs:restriction base="xs:integer">
+      <xs:minInclusive value="1"/>
+      <xs:maxInclusive value="65535"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="tokenVersionType">
+    <xs:restriction base="xs:integer">
+      <xs:minInclusive value="0"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="roleType">
+    <xs:attribute name="internal_id" type="xs:integer" use="required"/>
+    <xs:attribute name="uuid" type="xs:string" use="optional"/>
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="description" type="xs:string" use="optional"/>
+    <xs:attribute name="created_at" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <xs:complexType name="userType">
+    <xs:sequence>
+      <xs:element name="full_name" type="xs:string"/>
+      <xs:element name="password_hash" type="xs:string"/>
+      <xs:element name="created_at" type="xs:string" minOccurs="0"/>
+      <xs:element name="updated_at" type="xs:string" minOccurs="0"/>
+      <xs:element name="last_login" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="internal_id" type="xs:integer" use="required"/>
+    <xs:attribute name="uuid" type="xs:string" use="optional"/>
+    <xs:attribute name="email" type="xs:string" use="required"/>
+    <xs:attribute name="role_id" type="xs:integer" use="required"/>
+    <xs:attribute name="is_active" type="booleanString" use="optional" default="true"/>
+    <xs:attribute name="token_version" type="tokenVersionType" use="optional" default="1"/>
+  </xs:complexType>
+
+  <xs:complexType name="credentialType">
+    <xs:sequence>
+      <xs:element name="password_hash" type="xs:string"/>
+    </xs:sequence>
+    <xs:attribute name="internal_id" type="xs:integer" use="required"/>
+    <xs:attribute name="uuid" type="xs:string" use="optional"/>
+    <xs:attribute name="user_id" type="xs:integer" use="required"/>
+    <xs:attribute name="tcp_username" type="xs:string" use="required"/>
+    <xs:attribute name="tcp_host" type="xs:string" use="optional" default="127.0.0.1"/>
+    <xs:attribute name="tcp_port" type="portType" use="optional" default="3307"/>
+    <xs:attribute name="is_active" type="booleanString" use="optional" default="true"/>
+    <xs:attribute name="created_at" type="xs:string" use="optional"/>
+    <xs:attribute name="updated_at" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <xs:element name="security">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="roles" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="role" type="roleType" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="users" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="user" type="userType" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="tcp_credentials" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="credential" type="credentialType" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+      <xs:attribute name="version" type="xs:positiveInteger" use="required"/>
+    </xs:complexType>
+
+    <!-- Unicité et références internes (même document). -->
+    <xs:key name="roleIdKey">
+      <xs:selector xpath="roles/role"/>
+      <xs:field xpath="@internal_id"/>
+    </xs:key>
+    <xs:key name="userIdKey">
+      <xs:selector xpath="users/user"/>
+      <xs:field xpath="@internal_id"/>
+    </xs:key>
+    <xs:unique name="userEmailUnique">
+      <xs:selector xpath="users/user"/>
+      <xs:field xpath="@email"/>
+    </xs:unique>
+    <xs:unique name="tcpUsernameUnique">
+      <xs:selector xpath="tcp_credentials/credential"/>
+      <xs:field xpath="@tcp_username"/>
+    </xs:unique>
+    <xs:unique name="tcpUserUnique">
+      <xs:selector xpath="tcp_credentials/credential"/>
+      <xs:field xpath="@user_id"/>
+    </xs:unique>
+    <xs:keyref name="userRoleRef" refer="roleIdKey">
+      <xs:selector xpath="users/user"/>
+      <xs:field xpath="@role_id"/>
+    </xs:keyref>
+    <xs:keyref name="tcpUserRef" refer="userIdKey">
+      <xs:selector xpath="tcp_credentials/credential"/>
+      <xs:field xpath="@user_id"/>
+    </xs:keyref>
+  </xs:element>
+
+</xs:schema>

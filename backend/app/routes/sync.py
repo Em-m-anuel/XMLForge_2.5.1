@@ -10,11 +10,29 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..utils.responses import success_response, error_response
 from ..services.sync_service import SyncService
 from ..services.auth_service import AuthService
+from ..services.permission_service import PermissionService
+from ..services.database_service import DatabaseService
 
 sync_bp = Blueprint('sync', __name__)
 
 def get_ip():
     return request.remote_addr or request.headers.get('X-Forwarded-For','') or None
+
+@sync_bp.route('/databases/<int:database_id>/rebuild-projection', methods=['POST'])
+@jwt_required()
+def rebuild_projection(database_id):
+    # La projection SQLite a été retirée (6J-B) : le Data Plane XML est la
+    # source de vérité. Route conservée pour compat frontend, sans effet.
+    user_id = int(get_jwt_identity())
+    database = DatabaseService.get_by_id(database_id)
+    if not database:
+        return error_response("Base introuvable", 404)
+    if not PermissionService.can_database(user_id, database_id, 'ddl'):
+        return error_response("Permission DDL refusée", 403)
+    return success_response({"database_id": database_id,
+                             "document_version": database.document_version,
+                             "projection": "XML_ONLY"}, "Data Plane XML : aucune projection SQLite")
+
 
 @sync_bp.route('/databases/<int:database_id>/sync-xml', methods=['POST'])
 @jwt_required()
@@ -41,11 +59,13 @@ def sync_database_xml(database_id):
             user_id=user.id,
             user_name=user.full_name,
             ip_address=get_ip(),
-            provided_key=provided_key
+            provided_key=provided_key,
+            expected_version=json_data.get('expected_version') or request.headers.get('If-Match')
         )
 
         if err:
-            return error_response(err, 400)
+            status = 409 if "Conflit de version" in err else 403 if "Permission" in err or "protégée" in err else 400
+            return error_response(err, status)
 
         return success_response(result, "Synchronisation XML réussie - base logique mise à jour, SQL régénéré depuis structure enregistrée")
 
@@ -83,7 +103,8 @@ def sync_table_xml(table_id):
             user_id=user.id,
             user_name=user.full_name,
             ip_address=get_ip(),
-            provided_key=provided_key
+            provided_key=provided_key,
+            expected_version=json_data.get('expected_version') or request.headers.get('If-Match')
         )
 
         if err:

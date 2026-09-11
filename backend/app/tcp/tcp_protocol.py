@@ -16,6 +16,9 @@ class TCPProtocol:
     MSG_ERROR = 4
     MSG_PING = 5
     MSG_PONG = 6
+    MSG_SELECT_DATABASE = 7
+    MSG_UNLOCK_TABLE = 8
+    MSG_CLOSE = 9
     
     # Codes de réponse
     AUTH_SUCCESS = 0
@@ -64,13 +67,31 @@ class TCPProtocol:
         return TCPProtocol.pack_message(TCPProtocol.MSG_AUTH, data)
     
     @staticmethod
-    def create_query_request(query: str, session_token: str) -> bytes:
-        """Crée une requête de requête"""
-        data = {
-            'query': query,
-            'session_token': session_token
-        }
+    def create_query_request(query: str, session_token: str, expected_version=None, table_key=None, engine=None) -> bytes:
+        data = {'query': query, 'session_token': session_token}
+        if expected_version is not None:
+            data['expected_version'] = expected_version
+        if table_key:
+            data['table_key'] = table_key
+        if engine:
+            data['engine'] = engine
         return TCPProtocol.pack_message(TCPProtocol.MSG_QUERY, data)
+
+    @staticmethod
+    def create_select_database(database, session_token: str) -> bytes:
+        return TCPProtocol.pack_message(TCPProtocol.MSG_SELECT_DATABASE, {
+            'database': database, 'session_token': session_token
+        })
+
+    @staticmethod
+    def create_unlock_table(table, key: str, session_token: str) -> bytes:
+        return TCPProtocol.pack_message(TCPProtocol.MSG_UNLOCK_TABLE, {
+            'table': table, 'key': key, 'session_token': session_token
+        })
+
+    @staticmethod
+    def create_close(session_token: str) -> bytes:
+        return TCPProtocol.pack_message(TCPProtocol.MSG_CLOSE, {'session_token': session_token})
     
     @staticmethod
     def create_response(status: int, data: dict = None) -> bytes:
@@ -81,12 +102,20 @@ class TCPProtocol:
         return TCPProtocol.pack_message(TCPProtocol.MSG_RESPONSE, response_data)
     
     @staticmethod
-    def create_error(code: int, message: str) -> bytes:
-        """Crée un message d'erreur"""
+    def create_error(code: int, message: str, error_code: str = None) -> bytes:
+        """Crée un message d'erreur.
+
+        - ``code`` : code numérique du protocole (stable, rétrocompatible) ;
+        - ``error_code`` : code métier XMLForge (ex. TABLE_NOT_FOUND,
+          ACCESS_DENIED, CONSTRAINT_VIOLATION…) — ajouté sans casser les
+          clients existants.
+        """
         data = {
             'code': code,
             'message': message
         }
+        if error_code:
+            data['error_code'] = error_code
         return TCPProtocol.pack_message(TCPProtocol.MSG_ERROR, data)
     
     @staticmethod

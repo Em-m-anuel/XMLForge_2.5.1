@@ -3,9 +3,7 @@ Bibliothèque cliente Python pour XMLForge TCP/IP
 """
 import socket
 import struct
-import json
-import uuid
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 from .tcp_protocol import TCPProtocol
 
 
@@ -93,21 +91,27 @@ class XMLForgeClient:
             raise ConnectionError(f"Erreur: {e}")
     
     def disconnect(self):
-        """Ferme la connexion"""
+        """Ferme proprement la session puis la socket."""
         if self.socket:
             try:
+                if self.session_token:
+                    self.socket.sendall(TCPProtocol.create_close(self.session_token))
+            except Exception:
+                pass
+            try:
                 self.socket.close()
-            except:
+            except Exception:
                 pass
         self.authenticated = False
         self.session_token = None
     
-    def execute(self, query: str) -> Dict[str, Any]:
+    def execute(self, query: str, expected_version: int = None, table_key: str = None, engine: str = None) -> Dict[str, Any]:
         """
         Exécute une requête sur le serveur
         
         Args:
             query: Requête à exécuter (SELECT, INSERT, UPDATE, DELETE)
+            engine: moteur d'exécution — 'sqlite' (défaut), 'xml' ou 'compare'
         
         Returns:
             Dictionnaire avec les résultats
@@ -121,7 +125,7 @@ class XMLForgeClient:
         
         try:
             # Envoyer la requête
-            query_request = TCPProtocol.create_query_request(query, self.session_token)
+            query_request = TCPProtocol.create_query_request(query, self.session_token, expected_version, table_key, engine)
             self.socket.sendall(query_request)
             
             # Recevoir la réponse
@@ -144,14 +148,42 @@ class XMLForgeClient:
             
             if msg_type != TCPProtocol.MSG_RESPONSE:
                 raise ConnectionError("Réponse invalide du serveur")
-            
-            return data.get('result', {})
+
+            # 'result' pour les requêtes classiques ; payload complet pour les
+            # réponses enrichies (engine=compare -> champ 'comparison', etc.).
+            return data.get('result', data)
         
         except socket.timeout:
             raise ConnectionError("Timeout lors de l'exécution")
         except socket.error as e:
             raise ConnectionError(f"Erreur de connexion: {e}")
     
+    def select_database(self, database) -> Dict[str, Any]:
+        if not self.authenticated:
+            raise RuntimeError("Non authentifié")
+        self.socket.sendall(TCPProtocol.create_select_database(database, self.session_token))
+        response = self._receive_message()
+        if not response:
+            raise ConnectionError("Aucune réponse")
+        msg_type, data, _ = response
+        if msg_type == TCPProtocol.MSG_ERROR:
+            raise RuntimeError(data.get('message'))
+        self.database_id = data.get('database_id')
+        self.database_name = data.get('database_name')
+        return data
+
+    def unlock_table(self, table, key: str) -> bool:
+        if not self.authenticated:
+            raise RuntimeError("Non authentifié")
+        self.socket.sendall(TCPProtocol.create_unlock_table(table, key, self.session_token))
+        response = self._receive_message()
+        if not response:
+            raise ConnectionError("Aucune réponse")
+        msg_type, data, _ = response
+        if msg_type == TCPProtocol.MSG_ERROR:
+            raise RuntimeError(data.get('message'))
+        return bool(data.get('unlocked'))
+
     def ping(self) -> bool:
         """
         Teste la connexion avec un ping
@@ -171,7 +203,7 @@ class XMLForgeClient:
             msg_type, _, _ = response
             return msg_type == TCPProtocol.MSG_PONG
         
-        except:
+        except Exception:
             return False
     
     def _receive_message(self) -> Optional[tuple]:
@@ -203,7 +235,7 @@ class XMLForgeClient:
             # Décoder le message
             return TCPProtocol.unpack_message(buffer)
         
-        except Exception as e:
+        except Exception:
             return None
     
     def select(self, table: str, columns: str = "*", where: str = None) -> List[Dict]:
@@ -223,7 +255,7 @@ class XMLForgeClient:
             query += f" WHERE {where}"
         
         result = self.execute(query)
-        return result.get('data', [])
+        return result.get('rows', result.get('data', []))
     
     def insert(self, table: str, data: Dict) -> int:
         """
@@ -237,7 +269,12 @@ class XMLForgeClient:
             Nombre de lignes insérées
         """
         columns = ', '.join(data.keys())
-        values = ', '.join([f"'{v}'" if isinstance(v, str) else str(v) for v in data.values()])
+        def literal(value):
+            if value is None: return 'NULL'
+            if isinstance(value, bool): return 'TRUE' if value else 'FALSE'
+            if isinstance(value, str): return "'" + value.replace("'", "''") + "'"
+            return str(value)
+        values = ', '.join(literal(v) for v in data.values())
         query = f"INSERT INTO {table} ({columns}) VALUES ({values})"
         
         result = self.execute(query)
@@ -255,10 +292,12 @@ class XMLForgeClient:
         Returns:
             Nombre de lignes mises à jour
         """
-        set_clause = ', '.join([
-            f"{k}='{v}'" if isinstance(v, str) else f"{k}={v}"
-            for k, v in data.items()
-        ])
+        def literal(value):
+            if value is None: return 'NULL'
+            if isinstance(value, bool): return 'TRUE' if value else 'FALSE'
+            if isinstance(value, str): return "'" + value.replace("'", "''") + "'"
+            return str(value)
+        set_clause = ', '.join(f"{k}={literal(v)}" for k, v in data.items())
         query = f"UPDATE {table} SET {set_clause} WHERE {where}"
         
         result = self.execute(query)

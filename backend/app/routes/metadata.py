@@ -7,8 +7,8 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..utils.responses import success_response, error_response
 from ..services.database_service import DatabaseService
 from ..services.table_service import TableService
-from ..services.column_service import ColumnService
 from ..services.auth_service import AuthService
+from ..services.permission_service import PermissionService
 
 metadata_bp = Blueprint('metadata', __name__)
 
@@ -24,6 +24,8 @@ def get_db_comment(db_id):
         db = DatabaseService.get_by_id(db_id)
         if not db:
             return error_response("Base introuvable", 404)
+        if not PermissionService.can_database(int(get_jwt_identity()), db, 'read'):
+            return error_response("Accès refusé", 403)
         return success_response({"comment": db.comment or "", "database_id": db.id, "uuid": db.uuid})
     except Exception as e:
         return error_response(str(e), 500)
@@ -50,6 +52,8 @@ def get_table_comment(table_id):
         table = TableService.get_by_id(table_id)
         if not table:
             return error_response("Table introuvable", 404)
+        if not PermissionService.can_table(int(get_jwt_identity()), table, 'read'):
+            return error_response("Accès refusé", 403)
         return success_response({"comment": table.comment or "", "table_id": table.id, "uuid": table.uuid})
     except Exception as e:
         return error_response(str(e), 500)
@@ -79,6 +83,8 @@ def get_column_comment(col_id):
         col = ColumnService.get_by_id(col_id)
         if not col:
             return error_response("Colonne introuvable", 404)
+        if not PermissionService.can_table(int(get_jwt_identity()), col.table_id, 'read'):
+            return error_response("Accès refusé", 403)
         return success_response({"comment": col.comment or "", "column_id": col.id, "uuid": col.uuid})
     except Exception as e:
         return error_response(str(e), 500)

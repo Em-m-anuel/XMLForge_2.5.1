@@ -1,17 +1,22 @@
+"""Service Auth — logique métier authentification V4/V6E.
+
+La persistance du plan de contrôle (users, roles) passe par la couche
+d'adaptation ``control_plane`` (backend XML, unique). Les mots de passe restent
+des hashes bcrypt ; le secret JWT reste en configuration.
 """
-Service Auth - logique métier authentification V4 avec admin, activation, last_login
-"""
-from ..extensions import db, bcrypt
-from ..models.user import User
+from ..control_plane import get_backend
+from ..extensions import bcrypt
 from flask_jwt_extended import create_access_token
 from ..utils.helpers import now_utc
 from .audit_service import AuditService
+
 
 class AuthService:
 
     @staticmethod
     def register(full_name, email, password, ip_address=None):
-        if User.query.filter_by(email=email.lower()).first():
+        backend = get_backend()
+        if backend.get_user_by_email(email.lower()):
             AuditService.log(
                 ip_address=ip_address,
                 action="ERREUR_INSCRIPTION",
@@ -22,16 +27,19 @@ class AuthService:
             return None, "Email déjà utilisé"
 
         pw_hash = bcrypt.generate_password_hash(password).decode('utf-8')
-        user = User(
+        role = backend.get_role_by_name('user')
+        if role is None:
+            role = backend.ensure_role('user', 'Utilisateur XMLForge')
+        user = backend.insert_user(
             full_name=full_name,
             email=email.lower(),
             password_hash=pw_hash,
+            role_id=role.id,
+            is_active=True,
+            token_version=1,
             created_at=now_utc(),
             updated_at=now_utc(),
-            is_active=True
         )
-        db.session.add(user)
-        db.session.commit()
 
         AuditService.log(
             user_id=user.id,
@@ -48,7 +56,8 @@ class AuthService:
 
     @staticmethod
     def login(email, password, ip_address=None):
-        user = User.query.filter_by(email=email.lower()).first()
+        backend = get_backend()
+        user = backend.get_user_by_email(email.lower())
         if not user:
             AuditService.log(
                 ip_address=ip_address,
@@ -81,10 +90,17 @@ class AuthService:
             )
             return None, "Email ou mot de passe incorrect"
 
-        user.last_login = now_utc()
-        db.session.commit()
+        backend.update_user_fields(user.id, {"last_login": now_utc()})
 
-        access_token = create_access_token(identity=str(user.id))
+        # Une reconnexion crée une nouvelle session : les déverrouillages de la
+        # session précédente ne doivent pas survivre.
+        from .unlock_service import UnlockService
+        UnlockService.clear_user_unlocks(user.id)
+
+        access_token = create_access_token(
+            identity=str(user.id),
+            additional_claims={"token_version": user.token_version or 1},
+        )
 
         AuditService.log(
             user_id=user.id,
@@ -101,12 +117,16 @@ class AuthService:
 
     @staticmethod
     def get_user_by_id(user_id):
-        return User.query.get(user_id)
+        return get_backend().get_user(user_id)
+
+    @staticmethod
+    def verify_password(user, password):
+        return bool(user and bcrypt.check_password_hash(user.password_hash, password))
 
     @staticmethod
     def verify_credentials(email, password):
-        """Vérifie les identifiants pour connexion TCP/IP"""
-        user = User.query.filter_by(email=email.lower()).first()
+        """Compatibilité REST/outils. TCP utilise TcpCredentialService."""
+        user = get_backend().get_user_by_email(email.lower())
         if not user:
             return None
         if not user.is_active:

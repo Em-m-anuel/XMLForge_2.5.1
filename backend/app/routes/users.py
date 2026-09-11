@@ -1,5 +1,5 @@
 """
-Routes Users - V4 admin only (nyx@xmlforge.io)
+Routes Users - admin uniquement
 Gère liste, création, modif, suppression, reset pwd, activation
 """
 from flask import Blueprint, request
@@ -22,6 +22,7 @@ class UserCreateSchema(Schema):
     email = fields.Email(required=True)
     password = fields.Str(required=True, validate=validate.Length(min=6, max=128))
     is_active = fields.Bool(required=False, load_default=True)
+    role = fields.Str(required=False, load_default="user", validate=validate.OneOf(["admin", "user"]))
 
 class UserUpdateSchema(Schema):
     class Meta:
@@ -29,6 +30,7 @@ class UserUpdateSchema(Schema):
     full_name = fields.Str(required=False, validate=validate.Length(min=2, max=120))
     email = fields.Email(required=False)
     is_active = fields.Bool(required=False)
+    role = fields.Str(required=False, validate=validate.OneOf(["admin", "user"]))
 
 class ResetPasswordSchema(Schema):
     class Meta:
@@ -82,6 +84,7 @@ def create_user():
             creator_id=admin.id,
             creator_name=admin.full_name,
             is_active=validated.get('is_active', True),
+            role_name=validated.get('role', 'user'),
             ip_address=get_ip()
         )
         if err:

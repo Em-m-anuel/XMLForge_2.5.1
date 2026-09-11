@@ -2,7 +2,8 @@
 Routes Auth - V4 avec clear unlocks on logout
 """
 from flask import Blueprint, request
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
+from datetime import datetime
 from ..utils.validators import RegisterSchema, LoginSchema
 from ..utils.responses import success_response, error_response
 from ..services.auth_service import AuthService
@@ -86,7 +87,11 @@ def logout():
     try:
         user_id = int(get_jwt_identity())
         user = AuthService.get_user_by_id(int(user_id))
-        # V4: clear personal unlocks on logout
+        # Révoquer le JWT courant (mémoire) et effacer les unlocks personnels.
+        from ..control_plane import volatile
+        payload = get_jwt()
+        expires_at = datetime.utcfromtimestamp(payload['exp'])
+        volatile.revoke_token(payload['jti'], expires_at)
         try:
             UnlockService.clear_user_unlocks(int(user_id))
         except Exception:

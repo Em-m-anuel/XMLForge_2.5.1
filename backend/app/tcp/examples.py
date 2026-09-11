@@ -13,7 +13,7 @@ print("=== Exemple 1: Connexion simple ===")
 client = XMLForgeClient(host='localhost', port=3307)
 client.connect(
     username='user@example.com',
-    password='password123'
+    password='<VOTRE_MOT_DE_PASSE>'
 )
 print(f"✓ Connecté en tant que: {client.username}")
 client.disconnect()
@@ -24,7 +24,7 @@ client = connect(
     host='localhost',
     port=3307,
     username='user@example.com',
-    password='password123'
+    password='<VOTRE_MOT_DE_PASSE>'
 )
 print(f"✓ Connecté: {client.authenticated}")
 client.disconnect()
@@ -35,8 +35,8 @@ client.disconnect()
 # ============================================================================
 
 print("\n=== Exemple 2: Context manager ===")
-with connect('localhost', 3307, 'user@example.com', 'password123') as client:
-    print(f"✓ Connecté à la base de données")
+with connect('localhost', 3307, 'user@example.com', '<VOTRE_MOT_DE_PASSE>') as client:
+    print("✓ Connecté à la base de données")
     # La déconnexion est automatique à la sortie du bloc
 
 print("✓ Déconnecté automatiquement")
@@ -47,7 +47,7 @@ print("✓ Déconnecté automatiquement")
 # ============================================================================
 
 print("\n=== Exemple 3: SELECT ===")
-with connect('localhost', 3307, 'user@example.com', 'password123') as client:
+with connect('localhost', 3307, 'user@example.com', '<VOTRE_MOT_DE_PASSE>') as client:
     # Requête simple
     users = client.select('users')
     print(f"✓ {len(users)} utilisateurs trouvés")
@@ -66,7 +66,7 @@ with connect('localhost', 3307, 'user@example.com', 'password123') as client:
 # ============================================================================
 
 print("\n=== Exemple 4: INSERT ===")
-with connect('localhost', 3307, 'user@example.com', 'password123') as client:
+with connect('localhost', 3307, 'user@example.com', '<VOTRE_MOT_DE_PASSE>') as client:
     # Insérer une ligne
     inserted = client.insert('users', {
         'name': 'John Doe',
@@ -92,7 +92,7 @@ with connect('localhost', 3307, 'user@example.com', 'password123') as client:
 # ============================================================================
 
 print("\n=== Exemple 5: UPDATE ===")
-with connect('localhost', 3307, 'user@example.com', 'password123') as client:
+with connect('localhost', 3307, 'user@example.com', '<VOTRE_MOT_DE_PASSE>') as client:
     # Mettre à jour un utilisateur
     updated = client.update('users', 
         {'status': 'active', 'last_login': '2026-01-11'},
@@ -113,7 +113,7 @@ with connect('localhost', 3307, 'user@example.com', 'password123') as client:
 # ============================================================================
 
 print("\n=== Exemple 6: DELETE ===")
-with connect('localhost', 3307, 'user@example.com', 'password123') as client:
+with connect('localhost', 3307, 'user@example.com', '<VOTRE_MOT_DE_PASSE>') as client:
     # Supprimer un utilisateur
     deleted = client.delete('users', where="email='john@example.com'")
     print(f"✓ {deleted} utilisateur(s) supprimé(s)")
@@ -128,7 +128,7 @@ with connect('localhost', 3307, 'user@example.com', 'password123') as client:
 # ============================================================================
 
 print("\n=== Exemple 7: Requête raw ===")
-with connect('localhost', 3307, 'user@example.com', 'password123') as client:
+with connect('localhost', 3307, 'user@example.com', '<VOTRE_MOT_DE_PASSE>') as client:
     # Exécuter une requête brute
     result = client.execute("SELECT * FROM users WHERE status='active'")
     print(f"✓ Résultat: {result}")
@@ -139,7 +139,7 @@ with connect('localhost', 3307, 'user@example.com', 'password123') as client:
 # ============================================================================
 
 print("\n=== Exemple 8: Ping ===")
-with connect('localhost', 3307, 'user@example.com', 'password123') as client:
+with connect('localhost', 3307, 'user@example.com', '<VOTRE_MOT_DE_PASSE>') as client:
     is_alive = client.ping()
     print(f"✓ Serveur disponible: {is_alive}")
 
@@ -275,8 +275,8 @@ def safe_insert_user(host, port, username, password, user_data, max_retries=3):
     while retries < max_retries:
         try:
             with connect(host, port, username, password) as client:
-                result = client.insert('users', user_data)
-                print(f"✓ Utilisateur inséré avec succès")
+                client.insert('users', user_data)
+                print("✓ Utilisateur inséré avec succès")
                 return True
         except ConnectionError as e:
             retries += 1

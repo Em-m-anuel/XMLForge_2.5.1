@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Control Plane XML — audit.xsd (Phase 6B)
+  Document : audit/audit-YYYY-MM.xml (audit de sécurité, rotation mensuelle).
+  Fidèle au modèle AuditLog réel : internal_id, uuid, user_id (nullable),
+  user_name, ip_address, action, element_type, element_name, description,
+  meta_data (JSON), timestamp.
+  Remarque : les champs "success", "database_id", "table_id" mentionnés dans
+  certains exemples de conception n'existent PAS dans le modèle AuditLog
+  actuel (database_id/table_id sont portés par meta_data JSON) — ils ne sont
+  donc pas déclarés ici. La rotation/compression/rétention appartiennent aux
+  phases ultérieures (AuditStore), pas à 6B.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+
+  <xs:simpleType name="monthType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{4}-\d{2}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="actionType">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+      <xs:maxLength value="100"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="entryType">
+    <xs:sequence>
+      <xs:element name="description" type="xs:string" minOccurs="0"/>
+      <xs:element name="meta_data" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="internal_id" type="xs:integer" use="required"/>
+    <xs:attribute name="uuid" type="xs:string" use="optional"/>
+    <xs:attribute name="user_id" type="xs:integer" use="optional"/>
+    <xs:attribute name="user_name" type="xs:string" use="optional"/>
+    <xs:attribute name="ip_address" type="xs:string" use="optional"/>
+    <xs:attribute name="action" type="actionType" use="required"/>
+    <xs:attribute name="element_type" type="xs:string" use="optional"/>
+    <xs:attribute name="element_name" type="xs:string" use="optional"/>
+    <xs:attribute name="timestamp" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <xs:element name="audit">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="entries" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="entry" type="entryType" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+      <xs:attribute name="version" type="xs:positiveInteger" use="required"/>
+      <xs:attribute name="month" type="monthType" use="required"/>
+    </xs:complexType>
+
+    <xs:key name="auditEntryIdKey">
+      <xs:selector xpath="entries/entry"/>
+      <xs:field xpath="@internal_id"/>
+    </xs:key>
+  </xs:element>
+
+</xs:schema>

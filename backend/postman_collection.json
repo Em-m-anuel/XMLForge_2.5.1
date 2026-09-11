@@ -20,7 +20,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"full_name\": \"Nyx Dev\",\n  \"email\": \"nyx@xmlforge.io\",\n  \"password\": \"Secret123\"\n}"
+              "raw": "{\n  \"full_name\": \"Admin Dev\",\n  \"email\": \"admin@example.com\",\n  \"password\": \"<VOTRE_MOT_DE_PASSE>\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/register",
@@ -45,7 +45,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"nyx@xmlforge.io\",\n  \"password\": \"Secret123\"\n}"
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"<VOTRE_MOT_DE_PASSE>\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/login",

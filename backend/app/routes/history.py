@@ -1,5 +1,5 @@
 """
-Route History - V4 admin only (nyx@xmlforge.io)
+Route History - admin uniquement
 """
 from flask import Blueprint, request
 from flask_jwt_extended import jwt_required
@@ -19,7 +19,7 @@ def get_history():
         if database_id:
             try:
                 database_id = int(database_id)
-            except:
+            except Exception:
                 database_id = None
 
         limit = min(limit, 500)

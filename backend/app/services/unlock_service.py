@@ -1,115 +1,106 @@
+"""Service Unlock — déverrouillage personnel par utilisateur/session.
+
+Stockage **mémoire** (volatil, décision Phase 6) : un redémarrage efface les
+déverrouillages. Aucune dépendance SQLite.
 """
-Service Unlock - V4 déverrouillage personnel par utilisateur
-"""
+
 from datetime import datetime, timedelta
-from ..extensions import db
-from ..models.table import Table
-from ..models.database import Database
-from ..models.table_unlock import TableUnlock
+
+from ..data_plane import get_table
 from ..utils.helpers import now_utc
 
-class UnlockService:
+_memory_unlocks = {}
 
+
+class _MemoryUnlock:
+    def __init__(self, user_id, table_id, unlocked_at, expires_at):
+        self.id = None
+        self.user_id = user_id
+        self.table_id = table_id
+        self.unlocked_at = unlocked_at
+        self.expires_at = expires_at
+
+    def is_expired(self):
+        return datetime.utcnow() > self.expires_at
+
+    def to_dict(self):
+        return {
+            "id": None, "user_id": self.user_id, "table_id": self.table_id,
+            "unlocked_at": self.unlocked_at.isoformat() if self.unlocked_at else None,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+            "is_expired": self.is_expired(),
+        }
+
+
+class UnlockService:
     @staticmethod
     def is_unlocked(user_id, table_id):
-        unlock = TableUnlock.query.filter_by(user_id=user_id, table_id=table_id).first()
-        if not unlock:
+        expires = _memory_unlocks.get((int(user_id), int(table_id)))
+        if not expires:
             return False
-        if unlock.is_expired():
-            # Supprimer expiré
-            db.session.delete(unlock)
-            db.session.commit()
+        if expires < datetime.utcnow():
+            _memory_unlocks.pop((int(user_id), int(table_id)), None)
             return False
         return True
 
     @staticmethod
+    def _valid_keys(table, database):
+        valid = []
+        if getattr(table, "file_identifier", None):
+            valid.append(table.file_identifier)
+        if database is not None and getattr(database, "key_identifier", None):
+            valid.append(database.key_identifier)
+        return valid
+
+    @staticmethod
     def unlock_table(user_id, table_id, provided_key):
-        table = Table.query.get(table_id)
+        table = get_table(table_id)
         if not table:
             return False, "Table introuvable"
-
-        database = Database.query.get(table.database_id)
+        from ..control_plane import get_backend
+        database = get_backend().get_database(getattr(table, "database_id", None))
         if not database:
             return False, "Base introuvable"
-
-        if not table.is_protected:
+        if not getattr(table, "is_protected", False):
             return True, "Table non protégée, accès autorisé"
-
-        valid_keys = []
-        if table.file_identifier:
-            valid_keys.append(table.file_identifier)
-        if database.key_identifier:
-            valid_keys.append(database.key_identifier)
-
-        if provided_key not in valid_keys:
+        if provided_key not in UnlockService._valid_keys(table, database):
             return False, "Clé invalide"
-
-        # Créer ou mettre à jour unlock
-        existing = TableUnlock.query.filter_by(user_id=user_id, table_id=table_id).first()
-        if existing:
-            existing.unlocked_at = now_utc()
-            existing.expires_at = datetime.utcnow() + timedelta(hours=24)
-        else:
-            unlock = TableUnlock(
-                user_id=user_id,
-                table_id=table_id,
-                unlocked_at=now_utc(),
-                expires_at=datetime.utcnow() + timedelta(hours=24)
-            )
-            db.session.add(unlock)
-
-        db.session.commit()
+        _memory_unlocks[(int(user_id), int(table_id))] = datetime.utcnow() + timedelta(hours=24)
         return True, "Table déverrouillée pour votre session"
 
     @staticmethod
     def list_user_unlocks(user_id):
-        unlocks = TableUnlock.query.filter_by(user_id=user_id).all()
-        # Filtrer expirés
         valid = []
-        for u in unlocks:
-            if u.is_expired():
-                db.session.delete(u)
-            else:
-                valid.append(u)
-        db.session.commit()
+        for (uid, tid), expires in list(_memory_unlocks.items()):
+            if uid != int(user_id):
+                continue
+            if expires < datetime.utcnow():
+                _memory_unlocks.pop((uid, tid), None)
+                continue
+            valid.append(_MemoryUnlock(uid, tid, None, expires))
         return valid
 
     @staticmethod
     def clear_user_unlocks(user_id):
-        TableUnlock.query.filter_by(user_id=user_id).delete()
-        db.session.commit()
+        for key in [k for k in _memory_unlocks if k[0] == int(user_id)]:
+            _memory_unlocks.pop(key, None)
 
     @staticmethod
     def clear_expired():
         now = datetime.utcnow()
-        TableUnlock.query.filter(TableUnlock.expires_at < now).delete()
-        db.session.commit()
+        for key in [k for k, v in _memory_unlocks.items() if v < now]:
+            _memory_unlocks.pop(key, None)
 
     @staticmethod
     def check_protection(user_id, table, provided_key=None):
-        """
-        Vérifie si user a accès à table protégée
-        Retourne (allowed, message)
-        """
-        if not table.is_protected:
+        if not getattr(table, "is_protected", False):
             return True, None
-
-        # Vérifier unlock personnel
         if user_id and UnlockService.is_unlocked(user_id, table.id):
             return True, None
-
-        # Vérifier clé fournie
         if not provided_key:
             return False, f"Table '{table.name}' protégée, clé requise"
-
-        database = Database.query.get(table.database_id)
-        valid_keys = []
-        if table.file_identifier:
-            valid_keys.append(table.file_identifier)
-        if database and database.key_identifier:
-            valid_keys.append(database.key_identifier)
-
-        if provided_key in valid_keys:
+        from ..control_plane import get_backend
+        database = get_backend().get_database(getattr(table, "database_id", None))
+        if provided_key in UnlockService._valid_keys(table, database):
             return True, None
-
         return False, "Clé invalide pour table protégée"

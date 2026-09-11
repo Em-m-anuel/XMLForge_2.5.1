@@ -1,5 +1,5 @@
 """
-Routes AuditLog - V4 admin only (nyx@xmlforge.io)
+Routes AuditLog - admin uniquement
 """
 from flask import Blueprint, request
 from flask_jwt_extended import jwt_required
@@ -17,7 +17,7 @@ def get_audit_logs():
         limit = int(request.args.get('limit', 100))
         limit = min(limit, 500)
         logs = AuditService.get_all(limit=limit)
-        data = [l.to_dict() for l in logs]
+        data = [entry.to_dict() for entry in logs]
         return success_response(data, f"{len(data)} logs d'audit")
     except Exception as e:
         return error_response(str(e), 500)

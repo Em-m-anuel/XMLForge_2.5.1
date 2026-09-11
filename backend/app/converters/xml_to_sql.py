@@ -6,7 +6,7 @@ Module réutilisable, aucune dépendance Flask
 - Génère INSERT INTO pour les données
 """
 from lxml import etree
-from typing import List, Dict, Optional
+from typing import List, Dict
 from datetime import datetime
 import re  # <-- CORRECTION 1 : Import manquant
 
@@ -82,7 +82,8 @@ def _parse_rows(table_elem) -> List[Dict]:
         for cell in row_elem.findall('cell'):
             col = cell.get('column')
             if col is not None:
-                row_data[col] = cell.text if cell.text is not None else ''
+                is_null = str(cell.get('null', 'false')).lower() in ('true', '1', 'yes')
+                row_data[col] = None if is_null else (cell.text if cell.text is not None else '')
         rows.append(row_data)
     return rows
 
@@ -141,8 +142,34 @@ def parse_database(xml_content: str) -> Dict:
             'file_identifier': t_elem.get('file_identifier', ''),
             'archived': _bool_from_attr(t_elem, 'archived', default=False),
             'columns': cols,
-            'rows': rows
+            'rows': rows,
+            'constraints': [],
+            'indexes': []
         }
+        constraints_parent = t_elem.find('constraints')
+        if constraints_parent is not None:
+            for constraint in constraints_parent:
+                item = {
+                    'kind': constraint.tag,
+                    'name': constraint.get('name'),
+                    'columns': [c.get('name') for c in constraint.findall('column')]
+                }
+                if constraint.tag == 'foreign-key':
+                    item.update({
+                        'references_table': constraint.get('references_table'),
+                        'references_columns': [c.strip() for c in constraint.get('references_columns', '').split(',') if c.strip()],
+                        'on_delete': constraint.get('on_delete', 'NO ACTION'),
+                        'on_update': constraint.get('on_update', 'NO ACTION')
+                    })
+                table_dict['constraints'].append(item)
+        indexes_parent = t_elem.find('indexes')
+        if indexes_parent is not None:
+            for index in indexes_parent.findall('index'):
+                table_dict['indexes'].append({
+                    'name': index.get('name'),
+                    'unique': _bool_from_attr(index, 'unique', False),
+                    'columns': [c.get('name') for c in index.findall('column')]
+                })
         db_info['tables'].append(table_dict)
 
     if not db_info['tables']:
@@ -223,6 +250,18 @@ def convert_xml_to_sql(xml_content: str, database_name: str = None) -> str:
                         ref_table, ref_col = ref, 'id'  # fallback
                     fk_defs.append(f"  FOREIGN KEY (`{col['name']}`) REFERENCES `{ref_table}`(`{ref_col}`)")
 
+        # Les contraintes composites canoniques remplacent/complètent les flags colonne.
+        for constraint in table.get('constraints', []):
+            if constraint['kind'] == 'primary-key':
+                pk_cols = constraint['columns']
+            elif constraint['kind'] == 'unique':
+                col_defs.append("  UNIQUE (" + ', '.join(f"`{c}`" for c in constraint['columns']) + ")")
+            elif constraint['kind'] == 'foreign-key':
+                fk_defs.append(
+                    "  FOREIGN KEY (" + ', '.join(f"`{c}`" for c in constraint['columns']) + ") REFERENCES " +
+                    f"`{constraint['references_table']}` (" + ', '.join(f"`{c}`" for c in constraint['references_columns']) + ") " +
+                    f"ON DELETE {constraint.get('on_delete', 'NO ACTION')} ON UPDATE {constraint.get('on_update', 'NO ACTION')}"
+                )
         if pk_cols:
             pk_def = f"  PRIMARY KEY ({', '.join([f'`{c}`' for c in pk_cols])})"
             col_defs.append(pk_def)
@@ -233,6 +272,16 @@ def convert_xml_to_sql(xml_content: str, database_name: str = None) -> str:
                        + ",\n".join(col_defs)
                        + "\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;")
         sql_parts.append(create_stmt)
+        indexes = list(table.get('indexes', []))
+        for col in cols:
+            if col.get('index'):
+                indexes.append({'name': f"idx_{t_name}_{col['name']}", 'columns': [col['name']], 'unique': False})
+        for index in indexes:
+            unique = 'UNIQUE ' if index.get('unique') else ''
+            sql_parts.append(
+                f"CREATE {unique}INDEX `{index['name']}` ON `{t_name}` (" +
+                ', '.join(f"`{c}`" for c in index.get('columns', [])) + ");"
+            )
 
         # Insertions
         if rows:

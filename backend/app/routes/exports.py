@@ -7,7 +7,6 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..utils.responses import success_response, error_response
 from ..services.export_service import ExportService
 from ..services.auth_service import AuthService
-from ..models.table import Table
 
 exports_bp = Blueprint('exports', __name__)
 
@@ -23,7 +22,7 @@ def export_xml(database_id):
 
         xml_content, err = ExportService.export_database_to_xml(database_id, user_id=user.id, user_name=user.full_name, ip_address=get_ip())
         if err:
-            return error_response(err, 404)
+            return error_response(err, 403 if 'Permission' in err else 404)
 
         if request.args.get('download') == 'true':
             return Response(
@@ -32,7 +31,12 @@ def export_xml(database_id):
                 headers={'Content-Disposition': f'attachment; filename=database_{database_id}.xml'}
             )
 
-        return success_response({"xml": xml_content, "database_id": database_id}, "Export XML généré")
+        from ..data_plane import get_data_plane
+        database = get_data_plane().get_database(database_id)
+        return success_response({
+            "xml": xml_content, "database_id": database_id,
+            "document_version": database.document_version if database else None
+        }, "Export XML généré")
 
     except Exception as e:
         return error_response(str(e), 500)
@@ -46,7 +50,7 @@ def export_sql(database_id):
 
         sql_content, err = ExportService.export_database_to_sql(database_id, user_id=user.id, user_name=user.full_name, ip_address=get_ip())
         if err:
-            return error_response(err, 404)
+            return error_response(err, 403 if 'Permission' in err else 404)
 
         if request.args.get('download') == 'true':
             return Response(
@@ -70,18 +74,22 @@ def export_table_xml(table_id):
 
         xml_content, err = ExportService.export_table_to_xml(table_id, user_id=user.id, user_name=user.full_name, ip_address=get_ip())
         if err:
-            return error_response(err, 404)
+            return error_response(err, 403 if 'Permission' in err else 404)
 
+        from ..data_plane import get_data_plane, get_table
+        table = get_table(table_id)
         if request.args.get('download') == 'true':
-            table = Table.query.get(table_id)
             fname = f"{table.name if table else table_id}.xml"
             return Response(
                 xml_content,
                 mimetype='application/xml',
                 headers={'Content-Disposition': f'attachment; filename={fname}'}
             )
-
-        return success_response({"xml": xml_content, "table_id": table_id}, "Export XML table généré")
+        database = get_data_plane().get_database(table.database_id) if table else None
+        return success_response({
+            "xml": xml_content, "table_id": table_id,
+            "document_version": database.document_version if database else None
+        }, "Export XML table généré")
 
     except Exception as e:
         return error_response(str(e), 500)
@@ -95,17 +103,17 @@ def export_table_sql(table_id):
 
         sql_content, err = ExportService.export_table_to_sql(table_id, user_id=user.id, user_name=user.full_name, ip_address=get_ip())
         if err:
-            return error_response(err, 404)
+            return error_response(err, 403 if 'Permission' in err else 404)
 
+        from ..data_plane import get_table
+        table = get_table(table_id)
         if request.args.get('download') == 'true':
-            table = Table.query.get(table_id)
             fname = f"{table.name if table else table_id}.sql"
             return Response(
                 sql_content,
                 mimetype='application/sql',
                 headers={'Content-Disposition': f'attachment; filename={fname}'}
             )
-
         return success_response({"sql": sql_content, "table_id": table_id}, "Export SQL table généré")
 
     except Exception as e:

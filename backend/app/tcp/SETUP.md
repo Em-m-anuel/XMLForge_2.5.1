@@ -272,7 +272,7 @@ Remplacement simple:
     conn = mysql.connector.connect(
         host='localhost',
         user='user',
-        password='pass',
+        password='<VOTRE_MOT_DE_PASSE>',
         database='db'
     )
     cursor = conn.cursor()

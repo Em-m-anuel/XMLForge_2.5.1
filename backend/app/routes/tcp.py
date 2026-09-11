@@ -1,7 +1,7 @@
 """
 Routes pour la gestion des credentials TCP/IP
 """
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..services.auth_service import AuthService
 from ..services.tcp_credential_service import TcpCredentialService
@@ -24,8 +24,9 @@ def get_tcp_credentials():
             result, error = TcpCredentialService.create_for_user(user_id)
             if error:
                 return error_response(error, 400)
-            credential = TcpCredentialService.get_by_user_id(user_id)
-        
+            # Le secret généré ne peut être relu depuis son hash : le rendre une
+            # seule fois lors de la création automatique.
+            return success_response(result, "Credentials créés; conservez le mot de passe affiché une seule fois")
         return success_response(credential.to_dict(), "Credentials récupérés")
     
     except Exception as e:
@@ -37,7 +38,7 @@ def get_tcp_credentials():
 def create_tcp_credentials():
     """Crée des credentials TCP pour l'utilisateur"""
     user_id = get_jwt_identity()
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     
     try:
         tcp_username = data.get('tcp_username')
@@ -63,7 +64,7 @@ def create_tcp_credentials():
 def update_tcp_credentials():
     """Met à jour les credentials TCP de l'utilisateur"""
     user_id = get_jwt_identity()
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     
     try:
         tcp_username = data.get('tcp_username')
@@ -127,13 +128,12 @@ def show_tcp_password():
     Nécessite une confirmation du mot de passe XMLForge actuel
     """
     user_id = get_jwt_identity()
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     
     try:
-        from ..extensions import db
-        from ..models.user import User
-        
-        user = db.session.get(User, user_id)
+        from ..control_plane import get_backend
+
+        user = get_backend().get_user(user_id)
         if not user:
             return error_response("Utilisateur non trouvé", 404)
         
@@ -183,7 +183,7 @@ def get_tcp_sessions():
         all_sessions = tcp_server.get_sessions_info()
         
         # Filtrer les sessions de l'utilisateur
-        user_sessions = [s for s in all_sessions if s['user'] == user_id]
+        user_sessions = [s for s in all_sessions if int(s['user_id']) == int(user_id)]
         
         return success_response({
             'sessions': user_sessions,

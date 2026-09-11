@@ -18,12 +18,25 @@ def get_ip():
 @jwt_required()
 def list_columns(table_id):
     try:
+        user_id = int(get_jwt_identity())
         include_archived = request.args.get('include_archived', 'true').lower() != 'false'
-        cols = ColumnService.get_by_table(table_id, include_archived=include_archived)
+        cols = ColumnService.get_by_table(table_id, include_archived=include_archived, user_id=user_id)
         data = [c.to_dict() for c in cols]
         return success_response(data)
     except Exception as e:
         return error_response(str(e), 500)
+
+@columns_bp.route('/columns/<int:col_id>/detail', methods=['GET'])
+@jwt_required()
+def get_column_detail(col_id):
+    col = ColumnService.get_by_id(col_id)
+    if not col:
+        return error_response("Colonne introuvable", 404)
+    from ..services.permission_service import PermissionService
+    if not PermissionService.can_table(int(get_jwt_identity()), col.table_id, 'read'):
+        return error_response("Accès refusé", 403)
+    return success_response(col.to_dict())
+
 
 @columns_bp.route('/columns', methods=['POST'])
 @jwt_required()
@@ -41,9 +54,9 @@ def create_column():
 
         provided_key = validated.get('key_identifier') or request.headers.get('X-Database-Key') or json_data.get('key_identifier')
 
-        col, err = ColumnService.create(validated, user.id, user.full_name, provided_key=provided_key, ip_address=get_ip())
+        col, err = ColumnService.create(validated, user.id, user.full_name, provided_key=provided_key, ip_address=get_ip(), expected_version=json_data.get('expected_version') or request.headers.get('If-Match'))
         if err:
-            status = 403 if "protégée" in err or "Clé" in err else 400
+            status = 409 if "Conflit" in err else 403 if "protégée" in err or "Clé" in err or "Permission" in err or "refusée" in err else 400
             return error_response(err, status)
 
         return success_response(col.to_dict(), "Colonne créée", 201)
@@ -66,9 +79,9 @@ def update_column(col_id):
 
         provided_key = validated.get('key_identifier') or request.headers.get('X-Database-Key')
 
-        col, err = ColumnService.update(col_id, validated, user.id, user.full_name, provided_key=provided_key, ip_address=get_ip())
+        col, err = ColumnService.update(col_id, validated, user.id, user.full_name, provided_key=provided_key, ip_address=get_ip(), expected_version=json_data.get('expected_version') or request.headers.get('If-Match'))
         if err:
-            status = 403 if "protégée" in err or "Clé" in err else 404
+            status = 409 if "Conflit" in err else 403 if "protégée" in err or "Clé" in err or "Permission" in err or "refusée" in err else 404
             return error_response(err, status)
 
         return success_response(col.to_dict(), "Colonne mise à jour")
@@ -90,9 +103,9 @@ def delete_column(col_id):
             body = request.get_json(silent=True) or {}
             provided_key = body.get('key_identifier') or provided_key
 
-        ok, err = ColumnService.delete(col_id, user.id, user.full_name, provided_key=provided_key, ip_address=get_ip())
+        ok, err = ColumnService.delete(col_id, user.id, user.full_name, provided_key=provided_key, ip_address=get_ip(), expected_version=request.headers.get('If-Match'))
         if not ok:
-            status = 403 if "protégée" in err or "Clé" in err else 404
+            status = 409 if "Conflit" in err else 403 if "protégée" in err or "Clé" in err or "Permission" in err or "refusée" in err else 404
             return error_response(err, status)
 
         return success_response(None, "Colonne supprimée")

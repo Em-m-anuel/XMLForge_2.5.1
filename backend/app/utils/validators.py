@@ -2,7 +2,7 @@
 Schémas Marshmallow pour validation des entrées V3 - XML source de vérité
 Supporte nouveaux attributs : comment, status, archived, protected, file_identifier, etc.
 """
-from marshmallow import Schema, fields, validate, ValidationError, INCLUDE
+from marshmallow import Schema, fields, validate, INCLUDE
 
 class BaseSchema(Schema):
     class Meta:
@@ -21,12 +21,17 @@ class DatabaseCreateSchema(BaseSchema):
     name = fields.Str(required=True, validate=validate.Length(min=1, max=120))
     description = fields.Str(required=False, load_default="")
     comment = fields.Str(required=False, load_default="")
+    scope = fields.Str(required=False, load_default="PERSONAL", validate=validate.OneOf(["PERSONAL", "COMMON", "personal", "common"]))
+    common_permission = fields.Str(required=False, allow_none=True, validate=validate.OneOf(["VIEW", "EDIT", "MANAGE"]))
 
 class DatabaseUpdateSchema(BaseSchema):
     name = fields.Str(required=False, validate=validate.Length(min=1, max=120))
     description = fields.Str(required=False)
     comment = fields.Str(required=False)
     status = fields.Str(required=False, validate=validate.OneOf(["ACTIVE","ARCHIVED","active","archived"]))
+    scope = fields.Str(required=False, validate=validate.OneOf(["PERSONAL", "COMMON", "personal", "common"]))
+    common_permission = fields.Str(required=False, allow_none=True, validate=validate.OneOf(["VIEW", "EDIT", "MANAGE"]))
+    expected_version = fields.Int(required=False)
 
 class TableCreateSchema(BaseSchema):
     name = fields.Str(required=True, validate=validate.Length(min=1, max=120))
@@ -39,6 +44,7 @@ class TableCreateSchema(BaseSchema):
     comment = fields.Str(required=False, load_default="")
     status = fields.Str(required=False, load_default="ACTIVE")
     archived = fields.Bool(required=False)
+    expected_version = fields.Int(required=False)
 
 class TableUpdateSchema(BaseSchema):
     name = fields.Str(required=False, validate=validate.Length(min=1, max=120))
@@ -52,6 +58,7 @@ class TableUpdateSchema(BaseSchema):
     archived = fields.Bool(required=False)
     # clé pour débloquer table protégée
     key_identifier = fields.Str(required=False)
+    expected_version = fields.Int(required=False)
 
 class ColumnCreateSchema(BaseSchema):
     name = fields.Str(required=True, validate=validate.Length(min=1, max=120))
@@ -70,8 +77,12 @@ class ColumnCreateSchema(BaseSchema):
     status = fields.Str(required=False, load_default="ACTIVE")
     archived = fields.Bool(required=False)
     references = fields.Str(required=False, allow_none=True)
+    index = fields.Bool(required=False, load_default=False)
+    on_delete = fields.Str(required=False, load_default="NO ACTION")
+    on_update = fields.Str(required=False, load_default="NO ACTION")
     table_id = fields.Int(required=True)
     key_identifier = fields.Str(required=False)
+    expected_version = fields.Int(required=False)
 
 class ColumnUpdateSchema(BaseSchema):
     name = fields.Str(required=False)
@@ -90,7 +101,11 @@ class ColumnUpdateSchema(BaseSchema):
     status = fields.Str(required=False)
     archived = fields.Bool(required=False)
     references = fields.Str(required=False, allow_none=True)
+    index = fields.Bool(required=False)
+    on_delete = fields.Str(required=False)
+    on_update = fields.Str(required=False)
     key_identifier = fields.Str(required=False)
+    expected_version = fields.Int(required=False)
 
 class UnlockTableSchema(BaseSchema):
     table_id = fields.Int(required=True)

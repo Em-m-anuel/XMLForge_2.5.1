@@ -1,225 +1,213 @@
-"""
-Service Row - V4 gestion des données d'une table (enregistrements)
-"""
-from ..extensions import db
-from ..models.table import Table
-from ..models.table_row import TableRow
-from ..models.database import Database
-from ..utils.helpers import now_utc
+"""CRUD des lignes — Data Plane XML (Phase 6J-B)."""
+
+from __future__ import annotations
+
+from ..data_plane import get_data_plane, get_table
+from ..errors import PermissionDenied
+from ..xml_engine.xml_native import XmlNativeEngine, coerce_literal, coerce_value
 from .history_service import HistoryService
 from .audit_service import AuditService
-from ..socket_events import emit_modification
-import uuid as uuid_lib
-import json
+from .permission_service import PermissionService
+from .unlock_service import UnlockService
+
+
+class _XmlRow:
+    def __init__(self, **kw):
+        self.id = kw.get("id")
+        self.uuid = kw.get("uuid")
+        self.table_id = kw.get("table_id")
+        self.data = kw.get("data", {})
+
+    def to_dict(self):
+        return {"id": self.id, "uuid": self.uuid, "table_id": self.table_id,
+                "data": self.data, "created_at": None, "updated_at": None}
+
 
 class RowService:
+    @staticmethod
+    def _xml_rows(table, limit, offset, filters, search, order_by):
+        document = get_data_plane().read_document(table.database_id)
+        engine = XmlNativeEngine(document=document)
+        tdoc = engine.table(table.name)
+        columns = engine._active_columns(tdoc)
+        col_names = {c["name"]: c for c in columns}
+        rows = tdoc.get("rows", [])
+
+        def matches(row):
+            data = row.get("data", {})
+            for col, val in (filters or {}).items():
+                ctype = col_names[col]["type"] if col in col_names else "TEXT"
+                if coerce_value(data.get(col), ctype) != coerce_literal(val, ctype):
+                    return False
+            if search:
+                needle = str(search).lower()
+                if not any(needle in str(data.get(c, "")).lower() for c in col_names):
+                    return False
+            return True
+
+        filtered = [r for r in rows if matches(r)]
+        total = len(filtered)
+        if order_by:
+            for item in reversed(order_by or []):
+                col = item["column"] if isinstance(item, dict) else str(item)
+                direction = (item.get("direction", "ASC") if isinstance(item, dict) else "ASC").upper()
+                ctype = col_names[col]["type"] if col in col_names else "TEXT"
+                reverse = direction == "DESC"
+                filtered.sort(
+                    key=lambda r, _c=col, _t=ctype: (
+                        coerce_value(r.get("data", {}).get(_c), _t) is not None,
+                        coerce_value(r.get("data", {}).get(_c), _t),
+                    ),
+                    reverse=reverse,
+                )
+        page = filtered[max(0, offset):max(0, offset) + max(1, limit)]
+        public_rows = [
+            {"id": r.get("internal_id"), "uuid": r.get("uuid"), "table_id": table.id,
+             "data": {c["name"]: coerce_value(r.get("data", {}).get(c["name"]), c["type"])
+                      for c in columns if c["name"] in r.get("data", {})},
+             "created_at": None, "updated_at": None}
+            for r in page
+        ]
+        return {"rows": public_rows, "total": total, "limit": limit, "offset": offset,
+                "table": table.to_dict()}
 
     @staticmethod
-    def _check_table_access(table_id, user_id=None, provided_key=None):
-        table = Table.query.get(table_id)
+    def get_by_table(table_id, limit=100, offset=0, user_id=None, filters=None,
+                     search=None, order_by=None):
+        table = get_table(table_id)
         if not table:
             return None, "Table introuvable"
-        if table.is_archived():
-            return None, f"Table '{table.name}' archivée, modification impossible"
-        database = Database.query.get(table.database_id)
-        if database and database.is_archived():
-            return None, f"Base '{database.name}' archivée, modification impossible"
-
-        # Vérifier protection avec unlocks personnels
-        if table.is_protected:
-            from ..models.table_unlock import TableUnlock
-            if user_id:
-                unlock = TableUnlock.query.filter_by(user_id=user_id, table_id=table_id).first()
-                if unlock and not unlock.is_expired():
-                    return table, None
-            # Sinon vérifier clé fournie
-            valid_keys = []
-            if table.file_identifier:
-                valid_keys.append(table.file_identifier)
-            if database and database.key_identifier:
-                valid_keys.append(database.key_identifier)
-            if valid_keys:
-                if not provided_key:
-                    return None, f"Table '{table.name}' protégée, clé requise"
-                if provided_key not in valid_keys:
-                    return None, "Clé invalide pour table protégée"
-
-        return table, None
+        try:
+            return RowService._xml_rows(table, limit, offset, filters, search, order_by), None
+        except Exception as exc:
+            return None, str(exc)
 
     @staticmethod
-    def get_by_table(table_id, limit=100, offset=0):
-        table = Table.query.get(table_id)
+    def create(table_id, data_dict, creator_id=None, creator_name=None, ip_address=None,
+               provided_key=None, expected_version=None):
+        table = get_table(table_id)
         if not table:
             return None, "Table introuvable"
-        query = TableRow.query.filter_by(table_id=table_id).order_by(TableRow.created_at.asc())
-        total = query.count()
-        rows = query.offset(offset).limit(min(limit, 500)).all()
-        return {"rows": [r.to_dict() for r in rows], "total": total, "table": table.to_dict()}, None
+        if creator_id is not None and not PermissionService.can_table(creator_id, table_id, "write"):
+            return None, "Permission d'écriture refusée"
+        allowed, message = UnlockService.check_protection(creator_id, table, provided_key)
+        if not allowed:
+            return None, message
+        holder = {}
+
+        def mutation(document):
+            engine = XmlNativeEngine(document=document)
+            result = engine.insert(table.name, data_dict)
+            tdoc = engine.table(table.name)
+            row = tdoc["rows"][-1]
+            row["internal_id"] = get_data_plane().allocate_object_id()
+            result["internal_id"] = row["internal_id"]
+            holder["result"] = result
+
+        try:
+            get_data_plane().mutate(table.database_id, mutation, expected_version=expected_version)
+        except Exception as exc:
+            return None, str(exc)
+        result = holder["result"]
+        HistoryService.log(user_id=creator_id, user_name=creator_name, action_type="a créé",
+                           element_type="ligne", element_name=f"{table.name}#{result['uuid']}",
+                           database_id=table.database_id, table_id=table.id, ip_address=ip_address,
+                           after=result)
+        AuditService.log(user_id=creator_id, user_name=creator_name, ip_address=ip_address,
+                         action="CREATION_LIGNE", element_type="ligne",
+                         element_name=f"{table.name}#{result['uuid']}",
+                         meta={"table_id": table.id, "row_uuid": result["uuid"]})
+        return _XmlRow(id=result.get("internal_id"), uuid=result["uuid"],
+                       table_id=table.id, data=result["data"]), None
 
     @staticmethod
-    def create(table_id, data_dict, creator_id=None, creator_name=None, ip_address=None, provided_key=None):
-        table, err = RowService._check_table_access(table_id, user_id=creator_id, provided_key=provided_key)
-        if err:
-            return None, err
-
-        # Validation basique: data_dict doit être dict
-        if not isinstance(data_dict, dict):
-            return None, "Données invalides, dict attendu"
-
-        row = TableRow(
-            uuid=str(uuid_lib.uuid4()),
-            table_id=table_id,
-            data_json=json.dumps(data_dict, ensure_ascii=False),
-            creator_id=creator_id,
-            last_modified_by_id=creator_id,
-            last_modified_by_name=creator_name,
-            created_at=now_utc(),
-            updated_at=now_utc()
-        )
-        db.session.add(row)
-        db.session.commit()
-
-        table.last_modified_by_id = creator_id
-        table.last_modified_by_name = creator_name
-        table.updated_at = now_utc()
-        db.session.commit()
-
-        HistoryService.log(
-            user_id=creator_id,
-            user_name=creator_name,
-            action_type="a créé",
-            element_type="ligne",
-            element_name=f"{table.name}#{row.id}",
-            description=f"Ligne créée dans table {table.name}",
-            database_id=table.database_id,
-            table_id=table_id,
-            ip_address=ip_address,
-            before=None,
-            after=row.to_dict()
-        )
-        AuditService.log(
-            user_id=creator_id,
-            user_name=creator_name,
-            ip_address=ip_address,
-            action="CREATION_LIGNE",
-            element_type="ligne",
-            element_name=f"{table.name}#{row.id}",
-            meta={"table_id": table_id, "row_id": row.id}
-        )
-        emit_modification("ligne", row.to_dict(), creator_name or "unknown")
-
-        return row, None
-
-    @staticmethod
-    def update(table_id, row_id, data_dict, updater_id=None, updater_name=None, ip_address=None, provided_key=None):
-        table, err = RowService._check_table_access(table_id, user_id=updater_id, provided_key=provided_key)
-        if err:
-            return None, err
-
-        row = TableRow.query.filter_by(id=row_id, table_id=table_id).first()
-        if not row:
+    def update(table_id, row_id, data_dict, updater_id=None, updater_name=None, ip_address=None,
+               provided_key=None, expected_version=None):
+        table = get_table(table_id)
+        if not table:
             return None, "Ligne introuvable"
+        if updater_id is not None and not PermissionService.can_table(updater_id, table_id, "write"):
+            return None, "Permission d'écriture refusée"
+        allowed, message = UnlockService.check_protection(updater_id, table, provided_key)
+        if not allowed:
+            return None, message
+        document = get_data_plane().read_document(table.database_id)
+        engine = XmlNativeEngine(document=document)
+        tdoc = engine.table(table.name)
+        target = next((r for r in tdoc.get("rows", []) if r.get("internal_id") == row_id), None)
+        if target is None:
+            return None, "Ligne introuvable"
+        before = {"id": row_id, "uuid": target.get("uuid"), "table_id": table.id,
+                  "data": target.get("data", {})}
 
-        before = row.to_dict()
+        def mutation(doc):
+            e = XmlNativeEngine(document=doc)
+            e.update(table.name, data_dict, row_uuid=target["uuid"], replace=True)
 
-        if not isinstance(data_dict, dict):
-            return None, "Données invalides"
-
-        row.set_data(data_dict)
-        row.last_modified_by_id = updater_id
-        row.last_modified_by_name = updater_name
-        row.updated_at = now_utc()
-        db.session.commit()
-
-        HistoryService.log(
-            user_id=updater_id,
-            user_name=updater_name,
-            action_type="a modifié",
-            element_type="ligne",
-            element_name=f"{table.name}#{row.id}",
-            description=f"Ligne {row_id} modifiée dans table {table.name}",
-            database_id=table.database_id,
-            table_id=table_id,
-            ip_address=ip_address,
-            before=before,
-            after=row.to_dict()
-        )
-        AuditService.log(
-            user_id=updater_id,
-            user_name=updater_name,
-            ip_address=ip_address,
-            action="MODIFICATION_LIGNE",
-            element_type="ligne",
-            element_name=f"{table.name}#{row.id}",
-            meta={"table_id": table_id, "row_id": row_id, "before": before, "after": row.to_dict()}
-        )
-        emit_modification("ligne", row.to_dict(), updater_name or "unknown")
-
-        return row, None
+        try:
+            get_data_plane().mutate(table.database_id, mutation, expected_version=expected_version)
+        except Exception as exc:
+            return None, str(exc)
+        document = get_data_plane().read_document(table.database_id)
+        engine = XmlNativeEngine(document=document)
+        tdoc = engine.table(table.name)
+        updated = next((r for r in tdoc.get("rows", []) if r.get("internal_id") == row_id), None)
+        after = {"id": row_id, "uuid": updated["uuid"], "table_id": table.id,
+                 "data": updated.get("data", {})}
+        HistoryService.log(user_id=updater_id, user_name=updater_name, action_type="a modifié",
+                           element_type="ligne", element_name=f"{table.name}#{row_id}",
+                           database_id=table.database_id, table_id=table.id, ip_address=ip_address,
+                           before=before, after=after)
+        AuditService.log(user_id=updater_id, user_name=updater_name, ip_address=ip_address,
+                         action="MODIFICATION_LIGNE", element_type="ligne",
+                         element_name=f"{table.name}#{row_id}", meta={"row_uuid": updated["uuid"]})
+        return _XmlRow(**after), None
 
     @staticmethod
-    def delete(table_id, row_id, deleter_id=None, deleter_name=None, ip_address=None, provided_key=None):
-        table, err = RowService._check_table_access(table_id, user_id=deleter_id, provided_key=provided_key)
-        if err:
-            return False, err
-
-        row = TableRow.query.filter_by(id=row_id, table_id=table_id).first()
-        if not row:
+    def delete(table_id, row_id, deleter_id=None, deleter_name=None, ip_address=None,
+               provided_key=None, expected_version=None):
+        table = get_table(table_id)
+        if not table:
             return False, "Ligne introuvable"
+        if deleter_id is not None and not PermissionService.can_table(deleter_id, table_id, "write"):
+            return False, "Permission d'écriture refusée"
+        allowed, message = UnlockService.check_protection(deleter_id, table, provided_key)
+        if not allowed:
+            return False, message
+        document = get_data_plane().read_document(table.database_id)
+        engine = XmlNativeEngine(document=document)
+        tdoc = engine.table(table.name)
+        target = next((r for r in tdoc.get("rows", []) if r.get("internal_id") == row_id), None)
+        if target is None:
+            return False, "Ligne introuvable"
+        before = {"id": row_id, "uuid": target.get("uuid"), "table_id": table.id,
+                  "data": target.get("data", {})}
 
-        before = row.to_dict()
+        def mutation(doc):
+            e = XmlNativeEngine(document=doc)
+            e.delete(table.name, row_uuid=target["uuid"])
 
-        db.session.delete(row)
-        db.session.commit()
-
-        HistoryService.log(
-            user_id=deleter_id,
-            user_name=deleter_name,
-            action_type="a supprimé",
-            element_type="ligne",
-            element_name=f"{table.name}#{row_id}",
-            description=f"Ligne {row_id} supprimée de table {table.name}",
-            database_id=table.database_id,
-            table_id=table_id,
-            ip_address=ip_address,
-            before=before,
-            after=None
-        )
-        AuditService.log(
-            user_id=deleter_id,
-            user_name=deleter_name,
-            ip_address=ip_address,
-            action="SUPPRESSION_LIGNE",
-            element_type="ligne",
-            element_name=f"{table.name}#{row_id}",
-            meta={"table_id": table_id, "row_id": row_id}
-        )
-
+        try:
+            get_data_plane().mutate(table.database_id, mutation, expected_version=expected_version)
+        except Exception as exc:
+            return False, str(exc)
+        HistoryService.log(user_id=deleter_id, user_name=deleter_name, action_type="a supprimé",
+                           element_type="ligne", element_name=f"{table.name}#{row_id}",
+                           database_id=table.database_id, table_id=table.id, ip_address=ip_address,
+                           before=before)
+        AuditService.log(user_id=deleter_id, user_name=deleter_name, ip_address=ip_address,
+                         action="SUPPRESSION_LIGNE", element_type="ligne",
+                         element_name=f"{table.name}#{row_id}", meta={"row_uuid": target["uuid"]})
         return True, None
 
     @staticmethod
-    def bulk_import(table_id, rows_data, creator_id=None, creator_name=None, ip_address=None, provided_key=None):
-        """Import multiple rows (for project import)"""
-        table, err = RowService._check_table_access(table_id, user_id=creator_id, provided_key=provided_key)
-        if err:
-            return None, err
-
+    def bulk_import(table_id, rows_data, creator_id=None, creator_name=None, ip_address=None,
+                    provided_key=None):
         created = []
-        for data_dict in rows_data:
-            if not isinstance(data_dict, dict):
-                continue
-            row = TableRow(
-                uuid=str(uuid_lib.uuid4()),
-                table_id=table_id,
-                data_json=json.dumps(data_dict, ensure_ascii=False),
-                creator_id=creator_id,
-                last_modified_by_id=creator_id,
-                last_modified_by_name=creator_name,
-                created_at=now_utc(),
-                updated_at=now_utc()
-            )
-            db.session.add(row)
+        for data in rows_data:
+            row, error = RowService.create(table_id, data, creator_id, creator_name,
+                                           ip_address, provided_key)
+            if error:
+                return None, error
             created.append(row)
-
-        db.session.commit()
         return created, None

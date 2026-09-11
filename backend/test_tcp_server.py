@@ -67,7 +67,7 @@ def test_protocol_encoding():
         from app.tcp import TCPProtocol
         
         # Test encoding
-        request = TCPProtocol.create_auth_request('test@example.com', 'password123', 'db')
+        request = TCPProtocol.create_auth_request('test@example.com', '<VOTRE_MOT_DE_PASSE>', 'db')
         print_success("Encoding de requête d'auth: OK")
         
         # Test ping/pong

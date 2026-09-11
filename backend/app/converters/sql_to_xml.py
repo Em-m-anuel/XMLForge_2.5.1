@@ -235,7 +235,6 @@ def parse_sql(sql_content: str) -> List[Dict]:
     statements = _split_sql_statements(sql)
 
     tables_dict = {}
-    tables = []
 
     # Première passe : CREATE TABLE
     for stmt in statements:
@@ -358,7 +357,7 @@ def convert_sql_to_xml(sql_content: str, database_name: str = "imported_db", aut
     db_elem = etree.Element('database',
                             name=database_name,
                             description='',
-                            version='2.0',
+                            version='1',
                             generator='XMLForge',
                             created_at=datetime.now().isoformat(),
                             author=author)

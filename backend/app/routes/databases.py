@@ -7,6 +7,7 @@ from ..utils.validators import DatabaseCreateSchema, DatabaseUpdateSchema
 from ..utils.responses import success_response, error_response
 from ..services.database_service import DatabaseService
 from ..services.auth_service import AuthService
+from ..services.permission_service import PermissionService
 from marshmallow import ValidationError
 
 databases_bp = Blueprint('databases', __name__)
@@ -14,14 +15,21 @@ databases_bp = Blueprint('databases', __name__)
 def get_ip():
     return request.remote_addr or request.headers.get('X-Forwarded-For','') or None
 
+
+def serialize_database(database, user_id, include_key=False):
+    data = database.to_dict(include_key=include_key)
+    data["access"] = PermissionService.database_access(user_id, database)
+    data["is_owner"] = PermissionService.is_owner(user_id, database)
+    return data
+
 @databases_bp.route('/databases', methods=['GET'])
 @jwt_required()
 def list_databases():
     try:
-        # ?include_archived=true/false
+        user_id = int(get_jwt_identity())
         include_archived = request.args.get('include_archived', 'true').lower() != 'false'
-        dbs = DatabaseService.get_all(include_archived=include_archived)
-        data = [db.to_dict(include_key=False) for db in dbs]
+        dbs = DatabaseService.get_all(include_archived=include_archived, user_id=user_id)
+        data = [serialize_database(db_obj, user_id, include_key=False) for db_obj in dbs]
         return success_response(data)
     except Exception as e:
         return error_response(str(e), 500)
@@ -48,13 +56,17 @@ def create_database():
             creator_id=user.id,
             creator_name=user.full_name,
             comment=validated.get('comment','') if 'comment' in validated else json_data.get('comment',''),
-            ip_address=get_ip()
+            ip_address=get_ip(),
+            scope=json_data.get('scope', 'PERSONAL'),
+            common_permission=json_data.get('common_permission'),
         )
 
-        return success_response(db_obj.to_dict(include_key=True), "Base créée", 201)
+        return success_response(serialize_database(db_obj, user.id, include_key=True), "Base créée", 201)
 
     except ValidationError as ve:
         return error_response("Validation échouée", 400, ve.messages)
+    except ValueError as ve:
+        return error_response(str(ve), 400)
     except Exception as e:
         return error_response(str(e), 500)
 
@@ -73,11 +85,20 @@ def update_database(db_id):
         if 'comment' in json_data:
             validated['comment'] = json_data['comment']
 
-        db_obj, err = DatabaseService.update(db_id, validated, user.id, user.full_name, ip_address=get_ip())
+        if 'scope' in json_data:
+            validated['scope'] = json_data['scope']
+        if 'common_permission' in json_data:
+            validated['common_permission'] = json_data['common_permission']
+        expected_version = json_data.get('expected_version') or request.headers.get('If-Match')
+        db_obj, err = DatabaseService.update(db_id, validated, user.id, user.full_name, ip_address=get_ip(), expected_version=expected_version)
         if err:
-            return error_response(err, 404 if "introuvable" in err else 400)
+            status = 404 if "introuvable" in err else 403 if "Permission" in err or "refusée" in err else 409 if "Conflit" in err else 400
+            return error_response(err, status)
 
-        return success_response(db_obj.to_dict(include_key=True), "Base mise à jour")
+        return success_response(
+            serialize_database(db_obj, user.id, include_key=PermissionService.can_database(user.id, db_obj, 'admin')),
+            "Base mise à jour"
+        )
 
     except ValidationError as ve:
         return error_response("Validation échouée", 400, ve.messages)
@@ -93,7 +114,7 @@ def delete_database(db_id):
 
         ok, err = DatabaseService.delete(db_id, user.id, user.full_name, ip_address=get_ip())
         if not ok:
-            return error_response(err, 404)
+            return error_response(err, 403 if "Permission" in err else 404)
 
         return success_response(None, "Base supprimée")
 
@@ -109,13 +130,10 @@ def get_database(db_id):
             return error_response("Base introuvable", 404)
 
         user_id = int(get_jwt_identity())
-        include_key = (db_obj.creator_id == user_id)
-
-        provided_key = request.headers.get('X-Database-Key') or request.args.get('key')
-        if provided_key and provided_key == db_obj.key_identifier:
-            include_key = True
-
-        return success_response(db_obj.to_dict(include_key=include_key))
+        if not PermissionService.can_database(user_id, db_obj, 'read'):
+            return error_response("Accès refusé", 403)
+        include_key = PermissionService.can_database(user_id, db_obj, 'admin')
+        return success_response(serialize_database(db_obj, user_id, include_key=include_key))
 
     except Exception as e:
         return error_response(str(e), 500)

@@ -11,7 +11,6 @@ from .exports import exports_bp
 from .converters import converters_bp
 from .history import history_bp
 from .unlock import unlock_bp
-from .database_create import db_create_bp
 from .metadata import metadata_bp
 from .audit import audit_bp
 from .sync import sync_bp
@@ -19,6 +18,8 @@ from .users import users_bp
 from .rows import rows_bp
 from .projects import projects_bp
 from .tcp import tcp_bp
+from .permissions import permissions_bp
+from .query import query_bp
 
 def _clone_blueprint(bp, new_name):
     from flask import Blueprint
@@ -37,21 +38,23 @@ def register_routes(app):
         converters_bp,
         history_bp,
         unlock_bp,
-        db_create_bp,
         metadata_bp,
         audit_bp,
         sync_bp,
         users_bp,
         rows_bp,
         projects_bp,
-        tcp_bp,
+        permissions_bp,
+        query_bp,
     ]
 
-    # Sans préfixe (spec)
+    # Sans préfixe historique et avec /api pour compatibilité.
     for bp in original_bps:
         app.register_blueprint(bp)
-
-    # Avec préfixe /api
     for bp in original_bps:
         clone = _clone_blueprint(bp, f"{bp.name}_api")
         app.register_blueprint(clone, url_prefix='/api')
+
+    # TCP possède déjà son préfixe canonique /api/tcp : ne pas le cloner sous
+    # /api/credentials, ce qui exposait auparavant des aliases accidentels.
+    app.register_blueprint(tcp_bp)

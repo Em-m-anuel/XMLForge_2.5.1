@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Control Plane XML — catalog.xsd (Phase 6B)
+  Document : catalog.xml (références des bases + grants/ACL).
+  - Ne contient AUCUNE définition de table/colonne/row métier (Data Plane).
+  - table_id est une référence logique vers le Data Plane : la vérification
+    inter-document est assurée par la couche métier, jamais par XSD.
+  - Une base COMMON ne doit PAS être déclinée en grants individuels : l'accès
+    collectif est porté par common_permission.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+
+  <xs:simpleType name="booleanString">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="true"/><xs:enumeration value="false"/>
+      <xs:enumeration value="1"/><xs:enumeration value="0"/>
+      <xs:enumeration value="yes"/><xs:enumeration value="no"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="scopeType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="PERSONAL"/>
+      <xs:enumeration value="COMMON"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="commonPermissionType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="VIEW"/>
+      <xs:enumeration value="EDIT"/>
+      <xs:enumeration value="MANAGE"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="statusType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="ACTIVE"/>
+      <xs:enumeration value="ARCHIVED"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="syncStatusType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="PENDING"/>
+      <xs:enumeration value="SYNCED"/>
+      <xs:enumeration value="ERROR"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="keyIdentifierType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="XML-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="databaseType">
+    <xs:attribute name="internal_id" type="xs:integer" use="required"/>
+    <xs:attribute name="uuid" type="xs:string" use="optional"/>
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="description" type="xs:string" use="optional"/>
+    <xs:attribute name="comment" type="xs:string" use="optional"/>
+    <xs:attribute name="creator_id" type="xs:integer" use="required"/>
+    <xs:attribute name="owner_id" type="xs:integer" use="optional"/>
+    <xs:attribute name="scope" type="scopeType" use="required"/>
+    <xs:attribute name="common_permission" type="commonPermissionType" use="optional"/>
+    <xs:attribute name="xml_file_path" type="xs:string" use="optional"/>
+    <xs:attribute name="projection_path" type="xs:string" use="optional"/>
+    <xs:attribute name="document_version" type="xs:positiveInteger" use="required"/>
+    <xs:attribute name="xml_checksum" type="xs:string" use="optional"/>
+    <xs:attribute name="sync_status" type="syncStatusType" use="optional" default="PENDING"/>
+    <xs:attribute name="status" type="statusType" use="optional" default="ACTIVE"/>
+    <xs:attribute name="key_identifier" type="keyIdentifierType" use="required"/>
+    <xs:attribute name="created_at" type="xs:string" use="optional"/>
+    <xs:attribute name="updated_at" type="xs:string" use="optional"/>
+    <xs:attribute name="last_modified_by_id" type="xs:integer" use="optional"/>
+    <xs:attribute name="last_modified_by_name" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <xs:complexType name="databasePermissionType">
+    <xs:attribute name="internal_id" type="xs:integer" use="required"/>
+    <xs:attribute name="uuid" type="xs:string" use="optional"/>
+    <xs:attribute name="database_id" type="xs:integer" use="required"/>
+    <xs:attribute name="user_id" type="xs:integer" use="required"/>
+    <xs:attribute name="can_read" type="booleanString" use="optional" default="true"/>
+    <xs:attribute name="can_write" type="booleanString" use="optional" default="false"/>
+    <xs:attribute name="can_ddl" type="booleanString" use="optional" default="false"/>
+    <xs:attribute name="can_admin" type="booleanString" use="optional" default="false"/>
+    <xs:attribute name="granted_by_id" type="xs:integer" use="optional"/>
+    <xs:attribute name="created_at" type="xs:string" use="optional"/>
+    <xs:attribute name="updated_at" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <xs:complexType name="tablePermissionType">
+    <xs:attribute name="internal_id" type="xs:integer" use="required"/>
+    <xs:attribute name="uuid" type="xs:string" use="optional"/>
+    <xs:attribute name="database_id" type="xs:integer" use="optional"/>
+    <xs:attribute name="table_id" type="xs:integer" use="required"/>
+    <xs:attribute name="user_id" type="xs:integer" use="required"/>
+    <xs:attribute name="can_read" type="booleanString" use="optional" default="false"/>
+    <xs:attribute name="can_write" type="booleanString" use="optional" default="false"/>
+    <xs:attribute name="can_ddl" type="booleanString" use="optional" default="false"/>
+    <xs:attribute name="can_admin" type="booleanString" use="optional" default="false"/>
+    <xs:attribute name="granted_by_id" type="xs:integer" use="optional"/>
+    <xs:attribute name="created_at" type="xs:string" use="optional"/>
+    <xs:attribute name="updated_at" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <xs:element name="catalog">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="databases" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="database" type="databaseType" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="database_permissions" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="database_permission" type="databasePermissionType" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="table_permissions" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="table_permission" type="tablePermissionType" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+      <xs:attribute name="version" type="xs:positiveInteger" use="required"/>
+      <xs:attribute name="next_object_id" type="xs:nonNegativeInteger" use="optional"/>
+    </xs:complexType>
+
+    <!-- Unicité interne au document (les références inter-documents vers
+         security.xml ou vers le Data Plane sont hors XSD, cf. couche métier). -->
+    <xs:key name="databaseIdKey">
+      <xs:selector xpath="databases/database"/>
+      <xs:field xpath="@internal_id"/>
+    </xs:key>
+    <xs:unique name="databaseKeyIdentifierUnique">
+      <xs:selector xpath="databases/database"/>
+      <xs:field xpath="@key_identifier"/>
+    </xs:unique>
+    <xs:key name="databasePermissionIdKey">
+      <xs:selector xpath="database_permissions/database_permission"/>
+      <xs:field xpath="@internal_id"/>
+    </xs:key>
+    <xs:key name="tablePermissionIdKey">
+      <xs:selector xpath="table_permissions/table_permission"/>
+      <xs:field xpath="@internal_id"/>
+    </xs:key>
+    <xs:unique name="databasePermissionUserUnique">
+      <xs:selector xpath="database_permissions/database_permission"/>
+      <xs:field xpath="@database_id"/>
+      <xs:field xpath="@user_id"/>
+    </xs:unique>
+    <xs:unique name="tablePermissionUserUnique">
+      <xs:selector xpath="table_permissions/table_permission"/>
+      <xs:field xpath="@table_id"/>
+      <xs:field xpath="@user_id"/>
+    </xs:unique>
+  </xs:element>
+
+</xs:schema>

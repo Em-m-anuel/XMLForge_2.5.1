@@ -1,55 +1,51 @@
+"""Service Users — V4/V6E admin only.
+
+Les lectures/écritures des utilisateurs et rôles passent par la couche
+d'adaptation ``control_plane`` (backend selon ``CONTROL_BACKEND``).
 """
-Service Users - V4 admin only
-"""
-from ..extensions import db, bcrypt
-from ..models.user import User
+from ..control_plane import get_backend
+from ..extensions import bcrypt
 from ..utils.helpers import now_utc
 from .history_service import HistoryService
 from .audit_service import AuditService
 from ..socket_events import emit_modification
-import uuid as uuid_lib
+
 
 class UserService:
 
     @staticmethod
     def get_all(search=None, include_inactive=True):
-        query = User.query
-        if search:
-            search_lower = f"%{search.lower()}%"
-            query = query.filter(
-                db.or_(
-                    User.email.ilike(search_lower),
-                    User.full_name.ilike(search_lower)
-                )
-            )
-        if not include_inactive:
-            query = query.filter_by(is_active=True)
-        return query.order_by(User.created_at.desc()).all()
+        return get_backend().list_users(search=search, include_inactive=include_inactive)
 
     @staticmethod
     def get_by_id(user_id):
-        return User.query.get(user_id)
+        return get_backend().get_user(user_id)
 
     @staticmethod
     def get_by_email(email):
-        return User.query.filter_by(email=email.lower()).first()
+        return get_backend().get_user_by_email(email)
 
     @staticmethod
-    def create(full_name, email, password, creator_id=None, creator_name=None, is_active=True, ip_address=None):
-        if User.query.filter_by(email=email.lower()).first():
+    def create(full_name, email, password, creator_id=None, creator_name=None,
+               is_active=True, role_name="user", ip_address=None):
+        backend = get_backend()
+        if backend.get_user_by_email(email.lower()):
             return None, "Email déjà utilisé"
 
         pw_hash = bcrypt.generate_password_hash(password).decode('utf-8')
-        user = User(
+        role = backend.get_role_by_name(str(role_name or 'user').lower())
+        if role is None:
+            return None, "Rôle introuvable"
+        user = backend.insert_user(
             full_name=full_name,
             email=email.lower(),
             password_hash=pw_hash,
+            role_id=role.id,
+            is_active=is_active,
+            token_version=1,
             created_at=now_utc(),
             updated_at=now_utc(),
-            is_active=is_active
         )
-        db.session.add(user)
-        db.session.commit()
 
         HistoryService.log(
             user_id=creator_id,
@@ -78,26 +74,43 @@ class UserService:
 
     @staticmethod
     def update(user_id, data, updater_id=None, updater_name=None, ip_address=None):
-        user = User.query.get(user_id)
-        if not user:
+        backend = get_backend()
+        user = backend.get_user(user_id)
+        if user is None:
             return None, "Utilisateur introuvable"
 
         before = user.to_dict()
+        changes = {}
 
         if 'full_name' in data and data['full_name']:
-            user.full_name = data['full_name']
+            changes['full_name'] = data['full_name']
         if 'email' in data and data['email']:
-            # Vérifier unicité
-            existing = User.query.filter_by(email=data['email'].lower()).first()
-            if existing and existing.id != user_id:
+            existing = backend.get_user_by_email(data['email'].lower())
+            if existing is not None and existing.id != user_id:
                 return None, "Email déjà utilisé"
-            user.email = data['email'].lower()
+            changes['email'] = data['email'].lower()
         if 'is_active' in data:
-            user.is_active = bool(data['is_active'])
+            if user.is_admin() and not bool(data['is_active']):
+                admin_count = backend.count_active_admins()
+                if admin_count <= 1:
+                    return None, "Impossible de désactiver le dernier administrateur"
+            new_active = bool(data['is_active'])
+            if user.is_active != new_active:
+                changes['token_version'] = (user.token_version or 1) + 1
+            changes['is_active'] = new_active
+        if 'role' in data and data['role']:
+            role = backend.get_role_by_name(str(data['role']).lower())
+            if role is None:
+                return None, "Rôle introuvable"
+            if user.is_admin() and role.name != 'admin':
+                admin_count = backend.count_active_admins()
+                if admin_count <= 1:
+                    return None, "Impossible de retirer le rôle du dernier administrateur"
+            changes['role_id'] = role.id
 
-        user.updated_at = now_utc()
-        db.session.commit()
-
+        changes['updated_at'] = now_utc()
+        backend.update_user_fields(user_id, changes)
+        user = backend.get_user(user_id)
         after = user.to_dict()
 
         HistoryService.log(
@@ -126,25 +139,34 @@ class UserService:
 
     @staticmethod
     def delete(user_id, deleter_id=None, deleter_name=None, ip_address=None):
-        user = User.query.get(user_id)
-        if not user:
+        backend = get_backend()
+        user = backend.get_user(user_id)
+        if user is None:
             return False, "Utilisateur introuvable"
 
-        # Empêcher suppression de l'admin principal
-        if user.email.lower() == "nyx@xmlforge.io":
-            return False, "Impossible de supprimer l'administrateur principal"
+        if user.is_admin():
+            admin_count = backend.count_active_admins()
+            if admin_count <= 1:
+                return False, "Impossible de supprimer le dernier administrateur"
 
         if deleter_id and int(deleter_id) == int(user_id):
             return False, "Vous ne pouvez pas supprimer votre propre compte"
 
+        owned = [d for d in backend.list_databases()
+                 if (getattr(d, "owner_id", None) or getattr(d, "creator_id", None)) == user_id]
+        if owned:
+            return False, "Transférez ou supprimez les bases possédées avant de supprimer cet utilisateur"
+
         before = user.to_dict()
 
-        # Supprimer aussi les unlocks
-        from ..models.table_unlock import TableUnlock
-        TableUnlock.query.filter_by(user_id=user_id).delete()
+        # Supprimer aussi les unlocks (volatils).
+        from .unlock_service import UnlockService
+        UnlockService.clear_user_unlocks(user_id)
 
-        db.session.delete(user)
-        db.session.commit()
+        try:
+            backend.delete_user(user_id)
+        except Exception as exc:
+            return False, str(exc)
 
         HistoryService.log(
             user_id=deleter_id,
@@ -171,14 +193,20 @@ class UserService:
 
     @staticmethod
     def reset_password(user_id, new_password, updater_id=None, updater_name=None, ip_address=None):
-        user = User.query.get(user_id)
-        if not user:
+        backend = get_backend()
+        user = backend.get_user(user_id)
+        if user is None:
             return None, "Utilisateur introuvable"
 
         pw_hash = bcrypt.generate_password_hash(new_password).decode('utf-8')
-        user.password_hash = pw_hash
-        user.updated_at = now_utc()
-        db.session.commit()
+        backend.update_user_fields(user_id, {
+            "password_hash": pw_hash,
+            "token_version": (user.token_version or 1) + 1,
+            "updated_at": now_utc(),
+        })
+        from .unlock_service import UnlockService
+        UnlockService.clear_user_unlocks(user_id)
+        user = backend.get_user(user_id)
 
         AuditService.log(
             user_id=updater_id,
@@ -194,19 +222,24 @@ class UserService:
 
     @staticmethod
     def toggle_active(user_id, updater_id=None, updater_name=None, ip_address=None):
-        user = User.query.get(user_id)
-        if not user:
+        backend = get_backend()
+        user = backend.get_user(user_id)
+        if user is None:
             return None, "Utilisateur introuvable"
 
-        if user.email.lower() == "nyx@xmlforge.io":
-            return None, "Impossible de désactiver l'administrateur principal"
+        if user.is_admin() and user.is_active:
+            admin_count = backend.count_active_admins()
+            if admin_count <= 1:
+                return None, "Impossible de désactiver le dernier administrateur"
 
-        user.is_active = not user.is_active
-        user.updated_at = now_utc()
-        db.session.commit()
+        backend.update_user_fields(user_id, {
+            "is_active": not user.is_active,
+            "token_version": (user.token_version or 1) + 1,
+            "updated_at": now_utc(),
+        })
+        user = backend.get_user(user_id)
 
         action = "ACTIVATION_UTILISATEUR" if user.is_active else "DESACTIVATION_UTILISATEUR"
-
         AuditService.log(
             user_id=updater_id,
             user_name=updater_name,
