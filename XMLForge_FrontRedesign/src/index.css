@@ -1,0 +1,212 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0d0d10;
+  --color-surface: #151519;
+  --color-panel: #1b1b21;
+  --color-raised: #212129;
+  --color-line: #27272f;
+  --color-line-soft: #1f1f26;
+  --color-fg: #f5f5f7;
+  --color-muted: #9a9aa5;
+  --color-dim: #6b6b77;
+
+  --color-accent: #6ba6e8;
+  --color-accent-soft: #1b2f45;
+  --color-xml: #d9a657;
+  --color-xml-soft: #33280f;
+  --color-ok: #4fbf87;
+  --color-ok-soft: #12291f;
+  --color-warn: #d9a657;
+  --color-warn-soft: #2b2210;
+  --color-danger: #e0736b;
+  --color-danger-soft: #2e1717;
+  --color-violet-soft: #241f33;
+  --color-violet: #9b8cf0;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+  --radius-card: 10px;
+}
+
+/* ------------------------------------------------------------------
+   Layer scale — stacking contexts for overlays.
+   App chrome stays inside #root (isolated at 0).
+   Portals mount on document.body above the app.
+
+   1 app
+   2 dropdown / popover     --z-dropdown
+   3 command palette        --z-palette
+   4 modal overlay          --z-modal-overlay
+   5 modal content          --z-modal
+   6 nested / critical      --z-modal-nested
+   7 toasts                 --z-toast
+------------------------------------------------------------------- */
+:root {
+  --z-dropdown: 200;
+  --z-palette: 300;
+  --z-modal-overlay: 400;
+  --z-modal: 410;
+  --z-modal-nested: 500;
+  --z-toast: 600;
+}
+
+.z-layer-dropdown { z-index: var(--z-dropdown); }
+.z-layer-palette { z-index: var(--z-palette); }
+.z-layer-modal-overlay { z-index: var(--z-modal-overlay); }
+.z-layer-modal { z-index: var(--z-modal); }
+.z-layer-modal-nested { z-index: var(--z-modal-nested); }
+.z-layer-toast { z-index: var(--z-toast); }
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  /* Trap in-app stacking (header backdrop-filter, dropdown z-index, etc.)
+     so nothing inside the workspace can paint above portaled overlays. */
+  #root {
+    isolation: isolate;
+    position: relative;
+    z-index: 0;
+  }
+
+  body.xf-lock-scroll {
+    overflow: hidden;
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv01", "cv02", "ss01";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: #2b4a6b;
+    color: #fff;
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+    border-radius: 4px;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font-family: inherit;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #2a2a33;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3a3a46;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes slideRight {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.anim-fade {
+  animation: fadeIn 0.18s ease-out both;
+}
+.anim-up {
+  animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.anim-pop {
+  animation: popIn 0.16s ease-out both;
+}
+.anim-right {
+  animation: slideRight 0.2s ease-out both;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.grid-lines {
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.tok-tag {
+  color: #d9a657;
+}
+.tok-attr {
+  color: #9b8cf0;
+}
+.tok-str {
+  color: #7fc6a4;
+}
+.tok-kw {
+  color: #6ba6e8;
+}
+.tok-num {
+  color: #d98b8b;
+}
+.tok-punc {
+  color: #6b6b77;
+}
+.tok-text {
+  color: #c9c9d2;
+}
