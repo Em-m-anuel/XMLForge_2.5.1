@@ -88,6 +88,13 @@ class XmlControlPlane:
         users.sort(key=lambda u: (u.created_at is None, u.created_at or ""), reverse=True)
         return users
 
+    def has_active_admin(self):
+        """Vrai si au moins un utilisateur actif possède le rôle ``admin``.
+
+        Check de démarrage (launcher) : un seul chargement de ``security.xml``.
+        """
+        return self._service.has_active_admin()
+
     def _next_internal_id(self, records, attr="internal_id"):
         ids = [getattr(r, attr) for r in records if getattr(r, attr) is not None]
         return (max(ids) + 1) if ids else 1

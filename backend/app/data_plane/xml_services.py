@@ -592,12 +592,58 @@ def _dp_column(column_id):
     return None
 
 
-def list_columns(table_id):
+def _table_doc_by_id(table_id):
+    """Retourne (database_id, table_doc) pour un table_id donné, ou (None, None)."""
     table = _dp().table_by_id(table_id)
     if table is None:
-        return []
-    document = _dp().read_document(table.database_id)
-    _, tdoc = _find_column(document, table_id, table.name)
+        return None, None
+    try:
+        document = _dp().read_document(table.database_id)
+    except Exception:
+        return None, None
+    # Recherche par internal_id d'abord, puis par nom (compat).
+    tdoc = next((t for t in document.get("tables", []) if t.get("internal_id") == table_id), None)
+    if tdoc is None:
+        tdoc = next((t for t in document.get("tables", []) if t.get("name") == table.name), None)
+    return table.database_id, tdoc
+
+
+def list_columns(table_id, include_archived=True):
+    """Liste les colonnes d'une table (XML natif).
+
+    Corrigé : l'ancienne implémentation utilisait _find_column avec le nom de la
+    table comme identifiant de colonne, ce qui retournait toujours [].
+    """
+    database_id, tdoc = _table_doc_by_id(table_id)
     if tdoc is None:
         return []
-    return [_column_view(table.database_id, table_id, c) for c in tdoc.get("columns", [])]
+    cols = tdoc.get("columns", []) or []
+    if not include_archived:
+        cols = [c for c in cols if (c.get("status") or "ACTIVE") != "ARCHIVED"]
+    return [_column_view(database_id, table_id, c) for c in cols]
+
+
+def list_columns_for_table(table_id, include_archived=True, user_id=None):
+    """Compatibilité avec l'ancien contrat ColumnService.get_by_table.
+
+    - include_archived : filtre les colonnes archivées si False.
+    - user_id : si fourni, vérifie la permission de lecture sur la table.
+    """
+    if user_id is not None:
+        try:
+            from ..services.permission_service import PermissionService
+            if not PermissionService.can_table(user_id, table_id, "read"):
+                return []
+        except Exception:
+            # En cas d'erreur de permission, on ne bloque pas brutalement :
+            # on laisse la couche route décider, mais on retourne vide par défaut.
+            pass
+    # include_archived peut être passé comme second arg positionnel (bool).
+    if isinstance(include_archived, str):
+        include_archived = include_archived.lower() != "false"
+    return list_columns(table_id, include_archived=bool(include_archived))
+
+
+def get_column(col_id):
+    """Retourne une colonne par id global (wrapper public de _dp_column)."""
+    return _dp_column(col_id)

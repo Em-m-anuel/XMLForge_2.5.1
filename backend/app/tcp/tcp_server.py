@@ -59,6 +59,38 @@ class TCPServer:
 
     def stop(self):
         self.running = False
+        # Rollback implicite de toutes les transactions actives avant arrêt
+        # — garantit que BEGIN + INSERT + SHUTDOWN sans COMMIT ne laisse pas de données
+        try:
+            with self.lock:
+                sessions_copy = list(self.sessions.values())
+            for sess in sessions_copy:
+                if not getattr(sess, 'transaction_active', False):
+                    continue
+                try:
+                    from ..xml_control import store as _store
+                    tp = getattr(sess, 'transaction_path', None)
+                    ts = getattr(sess, 'transaction_snapshot', None)
+                    if not isinstance(tp, dict) or not isinstance(ts, dict):
+                        continue
+                    xml_path = tp.get("xml")
+                    catalog_path = tp.get("catalog")
+                    xml_snap = ts.get("xml")
+                    catalog_snap = ts.get("catalog")
+                    if xml_path and xml_snap and hasattr(xml_snap, 'exists'):
+                        _store.restore(xml_path, xml_snap)
+                    if catalog_path and catalog_snap and hasattr(catalog_snap, 'exists'):
+                        _store.restore(catalog_path, catalog_snap)
+                    logger.info("Rollback implicite transaction session %s (%s)", getattr(sess, 'token', '?')[:8], getattr(sess, 'username', '?'))
+                except Exception as e:
+                    logger.error("Erreur rollback implicite session %s: %s", getattr(sess, 'token', '?')[:8], e)
+                finally:
+                    sess.transaction_active = False
+                    sess.transaction_snapshot = None
+                    sess.transaction_path = None
+        except Exception as e:
+            logger.error("Erreur rollback global shutdown: %s", e)
+
         if self.socket:
             try: self.socket.close()
             except OSError: pass
@@ -112,6 +144,24 @@ class TCPServer:
             except OSError: pass
             with self.lock:
                 for token in connection_tokens:
+                    sess = self.sessions.get(token)
+                    if sess and getattr(sess, 'transaction_active', False):
+                        try:
+                            from ..xml_control import store as _store
+                            tp = getattr(sess, 'transaction_path', None)
+                            ts = getattr(sess, 'transaction_snapshot', None)
+                            if isinstance(tp, dict) and isinstance(ts, dict):
+                                xml_path = tp.get("xml")
+                                catalog_path = tp.get("catalog")
+                                xml_snap = ts.get("xml")
+                                catalog_snap = ts.get("catalog")
+                                if xml_path and xml_snap and hasattr(xml_snap, 'exists'):
+                                    _store.restore(xml_path, xml_snap)
+                                if catalog_path and catalog_snap and hasattr(catalog_snap, 'exists'):
+                                    _store.restore(catalog_path, catalog_snap)
+                                logger.info("Rollback implicite à la déconnexion session %s", token[:8])
+                        except Exception as e:
+                            logger.error("Erreur rollback déconnexion %s: %s", token[:8], e)
                     self.sessions.pop(token, None)
 
     def _session(self, data):
@@ -139,6 +189,27 @@ class TCPServer:
         if msg_type == TCPProtocol.MSG_UNLOCK_TABLE:
             return self._handle_unlock(data, session), session, False
         if msg_type == TCPProtocol.MSG_CLOSE:
+            if getattr(session, 'transaction_active', False):
+                try:
+                    from ..xml_control import store as _store
+                    tp = getattr(session, 'transaction_path', None)
+                    ts = getattr(session, 'transaction_snapshot', None)
+                    if isinstance(tp, dict) and isinstance(ts, dict):
+                        xml_path = tp.get("xml")
+                        catalog_path = tp.get("catalog")
+                        xml_snap = ts.get("xml")
+                        catalog_snap = ts.get("catalog")
+                        if xml_path and xml_snap and hasattr(xml_snap, 'exists'):
+                            _store.restore(xml_path, xml_snap)
+                        if catalog_path and catalog_snap and hasattr(catalog_snap, 'exists'):
+                            _store.restore(catalog_path, catalog_snap)
+                        logger.info("Rollback implicite à la fermeture CLOSE session %s", session.token[:8])
+                except Exception as e:
+                    logger.error("Erreur rollback CLOSE %s: %s", session.token[:8], e)
+                finally:
+                    session.transaction_active = False
+                    session.transaction_snapshot = None
+                    session.transaction_path = None
             with self.lock: self.sessions.pop(session.token, None)
             return TCPProtocol.create_response(TCPProtocol.QUERY_SUCCESS, {"closed": True}), session, True
         return TCPProtocol.create_error(TCPProtocol.INVALID_REQUEST, "Type de message inconnu"), session, False
@@ -360,7 +431,25 @@ class TCPServer:
     def _purge_expired(self):
         with self.lock:
             for token, session in list(self.sessions.items()):
-                if session.is_expired(): self.sessions.pop(token, None)
+                if session.is_expired():
+                    if getattr(session, 'transaction_active', False):
+                        try:
+                            from ..xml_control import store as _store
+                            tp = getattr(session, 'transaction_path', None)
+                            ts = getattr(session, 'transaction_snapshot', None)
+                            if isinstance(tp, dict) and isinstance(ts, dict):
+                                xml_path = tp.get("xml")
+                                catalog_path = tp.get("catalog")
+                                xml_snap = ts.get("xml")
+                                catalog_snap = ts.get("catalog")
+                                if xml_path and xml_snap and hasattr(xml_snap, 'exists'):
+                                    _store.restore(xml_path, xml_snap)
+                                if catalog_path and catalog_snap and hasattr(catalog_snap, 'exists'):
+                                    _store.restore(catalog_path, catalog_snap)
+                                logger.info("Rollback implicite expiration session %s", token[:8])
+                        except Exception as e:
+                            logger.error("Erreur rollback expiration %s: %s", token[:8], e)
+                    self.sessions.pop(token, None)
 
     def get_sessions_info(self):
         self._purge_expired()

@@ -29,6 +29,7 @@ export function Workspace() {
   const [tables, setTables] = useState([])
   const [currentTable, setCurrentTable] = useState(null)
   const [columns, setColumns] = useState([])
+  const [columnsError, setColumnsError] = useState(null)
   const [rows, setRows] = useState([])
   const [rowsTotal, setRowsTotal] = useState(0)
   const [rowsLoading, setRowsLoading] = useState(false)
@@ -41,6 +42,7 @@ export function Workspace() {
   const [documentVersion, setDocumentVersion] = useState(null)
   const [relationColumns, setRelationColumns] = useState({})
   const [relationsLoading, setRelationsLoading] = useState(false)
+  const [relationsError, setRelationsError] = useState(null)
   const [conflict, setConflict] = useState(false)
   const [tab, setTab] = useState('structure')
 
@@ -108,16 +110,21 @@ export function Workspace() {
         return data.find(table => table.id === previous.id) || data[0]
       })
     } catch (err) {
+      setTables([])
+      setCurrentTable(null)
       notify('error', 'Erreur tables', err.message)
     }
   }, [dbId, notify])
 
   const fetchColumns = useCallback(async (tableId) => {
     if (!tableId) return
+    setColumnsError(null)
     try {
       const data = await columnService.list(tableId, true)
       setColumns(data)
     } catch (err) {
+      setColumnsError(err.message)
+      setColumns([])
       notify('error', 'Erreur colonnes', err.message)
     }
   }, [notify])
@@ -168,12 +175,28 @@ export function Workspace() {
     }
   }, [])
 
-  useEffect(() => { fetchDatabase() }, [fetchDatabase])
-  useEffect(() => { fetchTables() }, [fetchTables])
+  useEffect(() => {
+    setDatabase(null)
+    setTables([])
+    setCurrentTable(null)
+    setColumns([])
+    setRows([])
+    fetchDatabase()
+  }, [fetchDatabase])
+  useEffect(() => {
+    setTables([])
+    setCurrentTable(null)
+    fetchTables()
+  }, [fetchTables])
   useEffect(() => {
     if (currentTable?.id) {
       setPage(1)
+      setColumns([])
+      setRows([])
       fetchColumns(currentTable.id)
+    } else {
+      setColumns([])
+      setRows([])
     }
   }, [currentTable?.id, fetchColumns])
   useEffect(() => {
@@ -186,9 +209,13 @@ export function Workspace() {
     if (tab !== 'relations' || tables.length === 0) return
     let active = true
     setRelationsLoading(true)
+    setRelationsError(null)
     Promise.all(tables.map(async table => [table.name, await columnService.list(table.id, false)]))
       .then(entries => { if (active) setRelationColumns(Object.fromEntries(entries)) })
-      .catch(err => notify('error', 'Relations', err.message))
+      .catch(err => {
+        if (active) setRelationsError(err.message || 'Erreur chargement relations')
+        notify('error', 'Relations', err.message)
+      })
       .finally(() => { if (active) setRelationsLoading(false) })
     return () => { active = false }
   }, [tab, tables, notify])
@@ -521,19 +548,36 @@ export function Workspace() {
         default: colForm.default === '' ? null : colForm.default,
         table_id: currentTable.id
       }
+      let latestVersion = documentVersion
       if (showEditCol && typeof showEditCol === 'object' && showEditCol.id) {
         const upd = await columnService.update(showEditCol.id, payload, documentVersion)
         setColumns(prev => prev.map(c => c.id === upd.id ? upd : c))
         notify('success', 'Colonne mise à jour', '')
+        // Mettre à jour le compteur de colonnes dans la sidebar si le statut change
+        const isArchived = upd.status === 'ARCHIVED'
+        setTables(prev => prev.map(t => t.id === currentTable.id ? { ...t, columns_count: isArchived ? Math.max(0, (t.columns_count || 1) - 1) : t.columns_count } : t))
       } else {
         const created = await columnService.create(payload, documentVersion)
         setColumns(prev => [...prev, created])
+        setTables(prev => prev.map(t => t.id === currentTable.id ? { ...t, columns_count: (t.columns_count || 0) + 1 } : t))
+        setCurrentTable(prev => prev ? { ...prev, columns_count: (prev.columns_count || 0) + 1 } : prev)
         notify('success', 'Colonne créée', '')
+        // Récupérer la version à jour après création
+        try {
+          const latest = await databaseService.get(dbId)
+          latestVersion = latest.document_version
+          setDocumentVersion(latest.document_version)
+          setDatabase(latest)
+        } catch { /* ignore */ }
       }
       setShowEditCol(null)
       setColForm(emptyColumnForm)
-      await fetchDatabase()
+      if (latestVersion === documentVersion) {
+        await fetchDatabase()
+      }
       await fetchTableXml(currentTable)
+      // Rafraîchir les tables pour garder columns_count cohérent (source XML)
+      try { await fetchTables() } catch { /* ignore */ }
     } catch (err) {
       if (err.status === 403) setShowUnlock(currentTable)
       if (!handleConflict(err)) notify('error', 'Erreur colonne', err.message)
@@ -547,9 +591,12 @@ export function Workspace() {
     try {
       await columnService.delete(col.id, documentVersion)
       setColumns(prev => prev.filter(c => c.id !== col.id))
+      setTables(prev => prev.map(t => t.id === currentTable.id ? { ...t, columns_count: Math.max(0, (t.columns_count || 1) - 1) } : t))
+      setCurrentTable(prev => prev ? { ...prev, columns_count: Math.max(0, (prev.columns_count || 1) - 1) } : prev)
       notify('success', 'Colonne supprimée', '')
       await fetchDatabase()
       await fetchTableXml(currentTable)
+      try { await fetchTables() } catch { /* ignore */ }
     } catch (err) {
       if (err.status === 403) setShowUnlock(currentTable)
       if (!handleConflict(err)) notify('error', 'Erreur', err.message)
@@ -624,6 +671,11 @@ export function Workspace() {
       if (result.document_version != null) setDocumentVersion(result.document_version)
       await fetchTables()
       await fetchDatabase()
+      if (currentTable?.id) {
+        await fetchColumns(currentTable.id)
+        await fetchRows(currentTable.id)
+        await fetchTableXml(currentTable)
+      }
       setShowImport(false)
       notify('success', 'Import réussi', 'Base synchronisée')
     } catch (err) {
@@ -687,9 +739,12 @@ export function Workspace() {
     try {
       await rowService.delete(currentTable.id, row.id, documentVersion)
       setRows(prev => prev.filter(r => r.id !== row.id))
+      setRowsTotal(prev => Math.max(0, prev - 1))
       notify('success', 'Ligne supprimée', '')
       await fetchDatabase()
       await fetchTableXml(currentTable)
+      // Refetch pour garantir total cohérent avec XML
+      try { await fetchRows(currentTable.id) } catch { /* ignore */ }
     } catch (err) {
       if (err.status === 403) setShowUnlock(currentTable)
       if (!handleConflict(err)) notify('error', 'Erreur', err.message)
@@ -861,7 +916,7 @@ export function Workspace() {
 
           <div className={`tab-panel ${tab === 'structure' ? 'active' : ''}`}>
             <div className="table-wrap">
-              <table className="cols-table">
+              {columnsError ? <div className="empty-state" style={{ padding: '30px' }}><div className="es-title">Impossible de charger les colonnes.</div><div className="es-desc">{columnsError}</div><button className="btn btn-sm" style={{ marginTop: 12 }} onClick={() => currentTable?.id && fetchColumns(currentTable.id)}>Réessayer</button></div> : <table className="cols-table">
                 <thead>
                   <tr>
                     <th>Nom</th><th>Type</th><th>Longueur</th><th>Nullable</th><th>PK</th><th>FK</th><th>Unique</th><th>Auto Inc.</th><th>Index</th><th>État</th><th>Modifié par</th><th style={{ textAlign: 'right' }}>Actions</th>
@@ -897,7 +952,7 @@ export function Workspace() {
                     <tr><td colSpan={12}><div className="empty-state" style={{ padding: '30px' }}><div className="es-title">Aucune colonne</div><div className="es-desc">Ajoutez votre première colonne.</div></div></td></tr>
                   )}
                 </tbody>
-              </table>
+              </table>}
             </div>
           </div>
 
@@ -963,7 +1018,7 @@ export function Workspace() {
 
           <div className={`tab-panel ${tab === 'relations' ? 'active' : ''}`}>
             <div className="panel-scroll" id="relations-wrap">
-              {relationsLoading ? <div className="empty-state"><span className="mini-spinner"/><div className="es-title">Chargement des relations...</div></div> : <>
+              {relationsLoading ? <div className="empty-state"><span className="mini-spinner"/><div className="es-title">Chargement des relations...</div></div> : relationsError ? <div className="empty-state" style={{ padding: 30 }}><div className="es-title">Impossible de charger les relations.</div><div className="es-desc">{relationsError}</div><button className="btn btn-sm" style={{ marginTop: 12 }} onClick={() => { setRelationsError(null); setTab('relations') }}>Réessayer</button></div> : <>
                 <div className="rel-section-title">Table courante</div>
                 <div className="rel-current-card"><div><div className="rel-current-name">{currentTable?.name || '—'}</div><div className="rel-current-sub">Clé primaire : {columns.find(column => column.primary_key)?.name || '—'} · {columns.length} colonne(s)</div></div></div>
                 <div className="rel-section-title">Relations sortantes</div>

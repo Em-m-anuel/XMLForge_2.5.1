@@ -24,6 +24,12 @@ backend/exports/*
 !backend/uploads/.gitkeep
 !backend/exports/.gitkeep
 
+# Données runtime / configuration / logs générés (jamais commités)
+backend/logs/
+backend/tmp/
+backend/config/
+secrets.env
+
 # Python
 *.pyc
 *.pyo
@@ -43,3 +49,7 @@ __pycache__/
 # =========================
 .DS_Store
 Thumbs.db
+
+# Fichiers système & uploads
+uploads/
+.sudo_as_admin_successful

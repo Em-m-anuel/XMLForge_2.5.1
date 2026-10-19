@@ -22,8 +22,9 @@ from enum import Enum
 from lxml import etree
 
 from . import store
+from .. import paths
 
-XSD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "control")
+XSD_DIR = os.path.join(paths.static_dir(), "control")
 
 
 def schema_path(name):

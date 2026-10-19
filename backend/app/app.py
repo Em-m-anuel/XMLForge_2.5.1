@@ -10,7 +10,9 @@ app = flask_app  # alias pour compatibilité
 
 if __name__ == '__main__':
     socketio.run(
-        flask_app, host='0.0.0.0', port=5000,
+        flask_app,
+        host=flask_app.config.get('HTTP_HOST', '0.0.0.0'),
+        port=flask_app.config.get('HTTP_PORT', 5000),
         debug=bool(flask_app.config.get('DEBUG', False)),
         allow_unsafe_werkzeug=bool(flask_app.config.get('ALLOW_UNSAFE_WERKZEUG', False)),
     )

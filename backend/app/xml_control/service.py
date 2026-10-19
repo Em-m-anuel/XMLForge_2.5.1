@@ -211,6 +211,22 @@ class XmlControlPlaneService:
     def list_users(self):
         return list(self._load_security().users)
 
+    def has_active_admin(self):
+        """Vrai si au moins un utilisateur **actif** possède le rôle ``admin``.
+
+        Un seul chargement de ``security.xml`` (parse + validation XSD) puis un
+        scan en mémoire — coût O(utilisateurs) sans relecture disque : adapté à
+        un check rapide au démarrage (launcher), même avec beaucoup d'utilisateurs.
+        """
+        doc = self._load_security()
+        admin_role = next(
+            (r for r in doc.roles if (r.name or "").strip().lower() == "admin"),
+            None,
+        )
+        if admin_role is None:
+            return False
+        return any(u.is_active and u.role_id == admin_role.internal_id for u in doc.users)
+
     def get_role(self, role_id):
         return next((r for r in self._load_security().roles if r.internal_id == role_id), None)
 

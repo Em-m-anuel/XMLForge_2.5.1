@@ -9,6 +9,7 @@ from datetime import datetime
 from functools import lru_cache
 from lxml import etree
 from ..errors import XmlValidationError
+from .. import paths
 
 IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 ALLOWED_TYPES = {
@@ -51,7 +52,7 @@ def normalize_type(value):
 
 @lru_cache(maxsize=1)
 def _xsd_schema():
-    xsd_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "xmlforge.xsd")
+    xsd_path = os.path.join(paths.static_dir(), "xmlforge.xsd")
     try:
         return etree.XMLSchema(etree.parse(xsd_path))
     except Exception as exc:
